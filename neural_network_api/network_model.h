@@ -36,9 +36,9 @@ namespace nn {
 		void add(tensor biases);
 		void mul(tensor weights);
 		//void dense(size_t in_size, size_t out_size);
-		void dense(size_t units);
-		void conv2d(shape filter_shape, size_t n_filters);
-		void conv2d(tensor filter);
+		void dense(size_t input_size, size_t units);
+		void conv2d(shape filter_shape, size_t n_filters, shape padding = shape(0, 0));
+		void conv2d(tensor filter, shape padding = shape(0, 0));
 		void pool(shape pool_size, shape stride);
 		void flatten();
 		void reshape(shape output_shape);

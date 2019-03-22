@@ -428,7 +428,7 @@ namespace nn {
 			C
 		);
 
-		scalar_matrix_multiply<float, float>(d_derivatives, derivatives.get_dev_pointer(), 1.0f / num, input_shape.width * output_shape.width);
+		scalar_matrix_multiply_f(d_derivatives, derivatives.get_dev_pointer(), 1.0f / num, input_shape.width * output_shape.width);
 		//add_matrices(derivatives.get_dev_pointer(), derivatives.get_dev_pointer(), d_derivatives, input_shape.width * output_shape.width, 1);
 
 		/*float * test = (float *)malloc(sizeof(float) * 10);
@@ -694,20 +694,22 @@ namespace nn {
 		__serialise(stream_buffer, offset, function_id::BATCH_NORM);
 	}
 
-	conv2d_function::conv2d_function(shape input_shape, shape filter_shape, size_t n_filters)
+	conv2d_function::conv2d_function(shape input_shape, shape filter_shape, size_t n_filters, shape padding)
 		: trainable_function(tensor({ filter_shape.width, filter_shape.height, filter_shape.depth, n_filters }))
 	{
 		this->filter_shape = filter_shape;
 		this->output_shape.depth = n_filters;
+		this->padding = padding;
 		set_input_shape(input_shape);
 	}
 
-	conv2d_function::conv2d_function(tensor filter)
+	conv2d_function::conv2d_function(tensor filter, shape padding)
 		: trainable_function(filter)
 	{
 		if (filter.get_dimensions() == 4) {
 			this->filter_shape = shape(filter.get_shape()[0], filter.get_shape()[1], filter.get_shape()[2]);
 			this->output_shape.depth = filter.get_shape()[3];
+			this->padding = padding;
 		}
 		else {
 			throw new exception("Conv2d filter must be four dimensional (width, height, depth, filters)");
@@ -732,6 +734,7 @@ namespace nn {
 			input_shape,
 			output_shape,
 			filter_shape,
+			padding,
 			batch_size
 		);
 	}
@@ -748,7 +751,7 @@ namespace nn {
 
 	void conv2d_function::back_propagate(float * current_pds, int num)
 	{
-		filter_outer_convolve_2d(current_pds, get_filter().get_dev_pointer(), d_tmp_backprop_output, output_shape, input_shape, filter_shape, num);
+		filter_outer_convolve_2d(current_pds, get_filter().get_dev_pointer(), d_tmp_backprop_output, output_shape, input_shape, filter_shape, padding, num);
 		cuda_safe_call(cudaMemcpy(current_pds, d_tmp_backprop_output, sizeof(float) * input_shape.size() * num, cudaMemcpyDeviceToDevice));
 	}
 
@@ -803,16 +806,24 @@ namespace nn {
 			input_shape,
 			output_shape,
 			filter_shape,
+			padding,
 			num
 		);
 
 		//average_vector(d_derivatives, derivatives.get_dev_pointer(), filter_shape.size() * output_shape.depth, num, num);
-		scalar_matrix_multiply(d_derivatives, derivatives.get_dev_pointer(), 1.0 / num, filter_shape.size() * output_shape.depth);
+		scalar_matrix_multiply_f(d_derivatives, derivatives.get_dev_pointer(), 1.0 / num, filter_shape.size() * output_shape.depth);
+	}
+
+	size_t conv2d_function::get_serialise_size()
+	{
+		return trainable_function::get_serialise_size() + sizeof(shape);
 	}
 
 	void conv2d_function::serialise(char * stream_buffer, size_t offset)
 	{
 		__serialise(stream_buffer, offset, function_id::CONV_2D);
+		size_t new_offset = trainable_function::get_serialise_size() + offset;
+		memcpy(&stream_buffer[new_offset], padding.serialise(), sizeof(shape));
 	}
 
 	void conv2d_function::deserialise(char * stream_buffer, size_t offset)
@@ -820,6 +831,8 @@ namespace nn {
 		trainable_function::deserialise(stream_buffer, offset);
 		vector<size_t> t_shape = train_tensor.get_shape();
 		filter_shape = shape(t_shape[0], t_shape[1], t_shape[2]);
+		size_t new_offset = trainable_function::get_serialise_size() + offset;
+		padding.deserialise(stream_buffer, new_offset);
 	}
 
 	void conv2d_function::set_input_shape(shape input_shape)
@@ -828,8 +841,8 @@ namespace nn {
 			throw new exception("Input depth and filter depth must be equal");
 		}
 		this->input_shape = input_shape;
-		this->output_shape.width = input_shape.width - filter_shape.width + 1;
-		this->output_shape.height = input_shape.height - filter_shape.height + 1;
+		this->output_shape.width = input_shape.width - filter_shape.width + 1 + padding.width * 2;
+		this->output_shape.height = input_shape.height - filter_shape.height + 1 + padding.height * 2;
 	}
 
 	pool_function::pool_function(shape pool_size, shape stride)
@@ -870,7 +883,8 @@ namespace nn {
 		cudaMemcpy(test, d_mask, sizeof(int) * 10, cudaMemcpyDeviceToHost);
 		fill_device_array(d_der_vector, 0, input_shape.size() * num);
 		pool_2d_derivative(current_pds, d_mask, d_der_vector, output_shape, input_shape, num);
-		if (cudaMemcpy(current_pds, d_der_vector, sizeof(float) * input_shape.size() * num, cudaMemcpyDeviceToDevice) != cudaSuccess) {
+		cuda_safe_call(cudaMemcpy(current_pds, d_der_vector, sizeof(float) * input_shape.size() * num, cudaMemcpyDeviceToDevice));
+		/*if (cudaMemcpy(current_pds, d_der_vector, sizeof(float) * input_shape.size() * num, cudaMemcpyDeviceToDevice) != cudaSuccess) {
 
 			float * test0 = (float *)malloc(sizeof(float) * 10);
 			cudaMemcpy(test0, d_out_vector, sizeof(float) * 10, cudaMemcpyDeviceToHost);
@@ -879,7 +893,7 @@ namespace nn {
 				printf("test[%d] = %d, out[%d] = %d\n", i, test0[i], i, test[i]);
 			}
 			printf("\n");
-		}
+		}*/
 	}
 
 	void pool_function::initialise()

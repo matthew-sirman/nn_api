@@ -143,12 +143,13 @@ __global__ void d_filter_convolve_2d(
 	shape filter_shape,
 	shape filter_chunks,
 	shape output_shape,
+	shape padding,
 	int filter_no,
 	int n_filters,
 	size_t batch_size) {
 
 	__shared__ float s_filter[FILTER_BLOCK_SIZE_N * FILTER_BLOCK_SIZE_M * FILTER_BLOCK_SIZE_K];
-	__shared__ float s_load_block[(CONV_BLOCK_SIZE_N + FILTER_BLOCK_SIZE_N) * (CONV_BLOCK_SIZE_M + FILTER_BLOCK_SIZE_M) * CONV_BLOCK_SIZE_K];
+	__shared__ float s_load_block[(CONV_BLOCK_SIZE_N + FILTER_BLOCK_SIZE_N) * (CONV_BLOCK_SIZE_M + FILTER_BLOCK_SIZE_M) * CONV_BLOCK_SIZE_K * CONV_BATCH_DEPTH];
 
 	int n_id = threadIdx.x;
 	int m_id = threadIdx.y;
@@ -162,7 +163,7 @@ __global__ void d_filter_convolve_2d(
 	int b_tile_m = (blockIdx.y / filter_chunks.height) * CONV_BLOCK_SIZE_M;
 	int b_tile_k = f_tile_k;
 
-	int b_elem = blockIdx.z / filter_chunks.depth;
+	int b_elem = (blockIdx.z / filter_chunks.depth) * CONV_BATCH_DEPTH;
 
 	//int b_elem 
 
@@ -189,7 +190,8 @@ __global__ void d_filter_convolve_2d(
 
 				if (g_load_n_id < filter_shape.width &&
 					g_load_m_id < filter_shape.height &&
-					g_load_k_id < filter_shape.depth) {
+					g_load_k_id < filter_shape.depth &&
+					b_elem < batch_size) {
 
 					int g_index = g_load_k_id * filter_shape.width * filter_shape.height +
 						g_load_m_id * filter_shape.width +
@@ -209,37 +211,44 @@ __global__ void d_filter_convolve_2d(
 	//load input chunk
 
 	#pragma unroll
-	for (int b_load_k = 0; b_load_k < CONV_BLOCK_SIZE_K; b_load_k += CONV_THREAD_SIZE_K) {
-		int load_k_id = b_load_k + k_id;
-		int g_load_k_id = b_tile_k + load_k_id;
-
+	for (int batch = 0; batch < CONV_BATCH_DEPTH; batch++) {
 		#pragma unroll
-		for (int b_load_m = 0; b_load_m < CONV_BLOCK_SIZE_M + FILTER_BLOCK_SIZE_M; b_load_m += CONV_THREAD_SIZE_M) {
-			int load_m_id = b_load_m + m_id;
-			int g_load_m_id = f_tile_m + b_tile_m + load_m_id;
+		for (int b_load_k = 0; b_load_k < CONV_BLOCK_SIZE_K; b_load_k += CONV_THREAD_SIZE_K) {
+			int load_k_id = b_load_k + k_id;
+			int g_load_k_id = b_tile_k + load_k_id;
 
 			#pragma unroll
-			for (int b_load_n = 0; b_load_n < CONV_BLOCK_SIZE_N + FILTER_BLOCK_SIZE_N; b_load_n += CONV_THREAD_SIZE_N) {
-				int load_n_id = b_load_n + n_id;
-				int g_load_n_id = f_tile_n + b_tile_n + load_n_id;
+			for (int b_load_m = 0; b_load_m < CONV_BLOCK_SIZE_M + FILTER_BLOCK_SIZE_M; b_load_m += CONV_THREAD_SIZE_M) {
+				int load_m_id = b_load_m + m_id;
+				int g_load_m_id = f_tile_m + b_tile_m + load_m_id - padding.height;
 
-				int s_index = load_k_id * (CONV_BLOCK_SIZE_N + FILTER_BLOCK_SIZE_N) * (CONV_BLOCK_SIZE_M + FILTER_BLOCK_SIZE_M) +
-					load_m_id * (CONV_BLOCK_SIZE_N + FILTER_BLOCK_SIZE_N) +
-					load_n_id;
+				#pragma unroll
+				for (int b_load_n = 0; b_load_n < CONV_BLOCK_SIZE_N + FILTER_BLOCK_SIZE_N; b_load_n += CONV_THREAD_SIZE_N) {
+					int load_n_id = b_load_n + n_id;
+					int g_load_n_id = f_tile_n + b_tile_n + load_n_id - padding.width;
 
-				if (g_load_n_id < input_shape.width &&
-					g_load_m_id < input_shape.height &&
-					g_load_k_id < input_shape.depth) {
+					int s_index = batch * (CONV_BLOCK_SIZE_N + FILTER_BLOCK_SIZE_N) * (CONV_BLOCK_SIZE_M + FILTER_BLOCK_SIZE_M) * CONV_BLOCK_SIZE_K +
+						load_k_id * (CONV_BLOCK_SIZE_N + FILTER_BLOCK_SIZE_N) * (CONV_BLOCK_SIZE_M + FILTER_BLOCK_SIZE_M) +
+						load_m_id * (CONV_BLOCK_SIZE_N + FILTER_BLOCK_SIZE_N) +
+						load_n_id;
 
-					int g_index = b_elem * input_shape.width * input_shape.height * input_shape.depth +
-						g_load_k_id * input_shape.width * input_shape.height +
-						g_load_m_id * input_shape.width +
-						g_load_n_id;
+					if (0 <= g_load_n_id &&
+						g_load_n_id < input_shape.width &&
+						0 <= g_load_m_id &&
+						g_load_m_id < input_shape.height &&
+						g_load_k_id < input_shape.depth &&
+						b_elem + batch < batch_size) {
 
-					s_load_block[s_index] = input[g_index];
-				}
-				else {
-					s_load_block[s_index] = 0.0;
+						int g_index = (b_elem + batch) * input_shape.width * input_shape.height * input_shape.depth +
+							g_load_k_id * input_shape.width * input_shape.height +
+							g_load_m_id * input_shape.width +
+							g_load_n_id;
+
+						s_load_block[s_index] = input[g_index];
+					}
+					else {
+						s_load_block[s_index] = 0.0;
+					}
 				}
 			}
 		}
@@ -249,34 +258,37 @@ __global__ void d_filter_convolve_2d(
 
 	//convolve and write
 
-	if (k_id == 0) {
-		#pragma unroll
-		for (int stride_m = 0; stride_m < CONV_THREAD_BLOCK_M; stride_m++) {
-			int start_m = m_id * CONV_THREAD_BLOCK_M + stride_m;
+	#pragma unroll
+	for (int batch = 0; batch < CONV_BATCH_DEPTH; batch++) {
+		if (k_id == 0) {
 			#pragma unroll
-			for (int stride_n = 0; stride_n < CONV_THREAD_BLOCK_N; stride_n++) {
-				int start_n = n_id * CONV_THREAD_BLOCK_N + stride_n;
+			for (int stride_m = 0; stride_m < CONV_THREAD_BLOCK_M; stride_m++) {
+				int start_m = m_id * CONV_THREAD_BLOCK_M + stride_m;
+				#pragma unroll
+				for (int stride_n = 0; stride_n < CONV_THREAD_BLOCK_N; stride_n++) {
+					int start_n = n_id * CONV_THREAD_BLOCK_N + stride_n;
 
-				int out_n_id = b_tile_n + start_n;
-				int out_m_id = b_tile_m + start_m;
-				int out_k_id = b_elem * n_filters + filter_no;
+					int out_n_id = b_tile_n + start_n;
+					int out_m_id = b_tile_m + start_m;
+					int out_k_id = (b_elem + batch) * n_filters + filter_no;
 
-				if (out_n_id < output_shape.width &&
-					out_m_id < output_shape.height &&
-					b_elem < batch_size) {
+					if (out_n_id < output_shape.width &&
+						out_m_id < output_shape.height &&
+						b_elem + batch < batch_size) {
 
-					int out_index = out_k_id * output_shape.width * output_shape.height +
-						out_m_id * output_shape.width +
-						out_n_id;
+						int out_index = out_k_id * output_shape.width * output_shape.height +
+							out_m_id * output_shape.width +
+							out_n_id;
 
-					float inc = calculate_conv2d_dot<CONV_BLOCK_SIZE_N + FILTER_BLOCK_SIZE_N, CONV_BLOCK_SIZE_M + FILTER_BLOCK_SIZE_M, CONV_THREAD_BLOCK_K>(
-						s_filter,
-						s_load_block,
-						start_n,
-						start_m
-					);
+						float inc = calculate_conv2d_dot<CONV_BLOCK_SIZE_N + FILTER_BLOCK_SIZE_N, CONV_BLOCK_SIZE_M + FILTER_BLOCK_SIZE_M, CONV_THREAD_BLOCK_K>(
+							s_filter,
+							&s_load_block[batch * (CONV_BLOCK_SIZE_N + FILTER_BLOCK_SIZE_N) * (CONV_BLOCK_SIZE_M + FILTER_BLOCK_SIZE_M) * CONV_BLOCK_SIZE_K],
+							start_n,
+							start_m
+							);
 
-					atomic_add(&output[out_index], inc);
+						atomic_add(&output[out_index], inc);
+					}
 				}
 			}
 		}
@@ -397,11 +409,13 @@ __global__ void d_filter_outer_convolve_2d(
 	shape filter_shape,
 	shape filter_chunks,
 	shape output_shape,
+	shape padding,
 	int input_depth,
-	int filter_no) {
+	int filter_no,
+	size_t batch_size) {
 
 	__shared__ float s_filter[FILTER_BLOCK_SIZE_N * FILTER_BLOCK_SIZE_M * FILTER_BLOCK_SIZE_K];
-	__shared__ float s_load_block[(CONV_BLOCK_SIZE_N + FILTER_BLOCK_SIZE_N) * (CONV_BLOCK_SIZE_M + FILTER_BLOCK_SIZE_M) * CONV_OUTER_BLOCK_SIZE_K];
+	__shared__ float s_load_block[(CONV_OUTER_BLOCK_SIZE_N + FILTER_BLOCK_SIZE_N) * (CONV_OUTER_BLOCK_SIZE_M + FILTER_BLOCK_SIZE_M) * CONV_OUTER_BLOCK_SIZE_K];
 
 	int n_id = threadIdx.x;
 	int m_id = threadIdx.y;
@@ -411,8 +425,8 @@ __global__ void d_filter_outer_convolve_2d(
 	int f_tile_m = blockIdx.y % filter_chunks.height;
 	int f_tile_k = blockIdx.z % filter_chunks.depth;
 
-	int b_tile_n = blockIdx.x / filter_chunks.width * CONV_BLOCK_SIZE_N;
-	int b_tile_m = blockIdx.y / filter_chunks.height * CONV_BLOCK_SIZE_M;
+	int b_tile_n = blockIdx.x / filter_chunks.width * CONV_OUTER_BLOCK_SIZE_N;
+	int b_tile_m = blockIdx.y / filter_chunks.height * CONV_OUTER_BLOCK_SIZE_M;
 	int b_tile_k = (blockIdx.z / filter_chunks.depth) % input_depth * CONV_OUTER_BLOCK_SIZE_K;
 
 	int b_elem = blockIdx.z / (filter_chunks.depth * input_depth);
@@ -425,12 +439,12 @@ __global__ void d_filter_outer_convolve_2d(
 		int g_load_k_id = f_tile_k + load_k_id;
 
 		#pragma unroll
-		for (int f_load_m = 0; f_load_m < FILTER_BLOCK_SIZE_M; f_load_m += CONV_THREAD_SIZE_M) {
+		for (int f_load_m = 0; f_load_m < FILTER_BLOCK_SIZE_M; f_load_m += CONV_OUTER_THREAD_SIZE_M) {
 			int load_m_id = f_load_m + m_id;
 			int g_load_m_id = f_tile_m + load_m_id;
 
 			#pragma unroll
-			for (int f_load_n = 0; f_load_n < FILTER_BLOCK_SIZE_N; f_load_n += CONV_THREAD_SIZE_N) {
+			for (int f_load_n = 0; f_load_n < FILTER_BLOCK_SIZE_N; f_load_n += CONV_OUTER_THREAD_SIZE_N) {
 				int load_n_id = f_load_n + n_id;
 				int g_load_n_id = f_tile_n + load_n_id;
 				
@@ -465,24 +479,25 @@ __global__ void d_filter_outer_convolve_2d(
 		int g_load_k_id = b_tile_k + load_k_id;
 
 		#pragma unroll
-		for (int b_load_m = 0; b_load_m < CONV_BLOCK_SIZE_M + FILTER_BLOCK_SIZE_M; b_load_m += CONV_THREAD_SIZE_M) {
+		for (int b_load_m = 0; b_load_m < CONV_OUTER_BLOCK_SIZE_M + FILTER_BLOCK_SIZE_M; b_load_m += CONV_OUTER_THREAD_SIZE_M) {
 			int load_m_id = b_load_m + m_id;
-			int g_load_m_id = b_tile_m + load_m_id - filter_shape.height + f_tile_m + 1;
+			int g_load_m_id = b_tile_m + load_m_id - filter_shape.height + f_tile_m + 1 + padding.height;
 
 			#pragma unroll
-			for (int b_load_n = 0; b_load_n < CONV_BLOCK_SIZE_N + FILTER_BLOCK_SIZE_N; b_load_n += CONV_THREAD_SIZE_N) {
+			for (int b_load_n = 0; b_load_n < CONV_OUTER_BLOCK_SIZE_N + FILTER_BLOCK_SIZE_N; b_load_n += CONV_OUTER_THREAD_SIZE_N) {
 				int load_n_id = b_load_n + n_id;
-				int g_load_n_id = b_tile_n + load_n_id - filter_shape.width + f_tile_n + 1;
+				int g_load_n_id = b_tile_n + load_n_id - filter_shape.width + f_tile_n + 1 + padding.width;
 
-				int s_index = load_k_id * (CONV_BLOCK_SIZE_N + FILTER_BLOCK_SIZE_N) * (CONV_BLOCK_SIZE_M + FILTER_BLOCK_SIZE_M) +
-					load_m_id * (CONV_BLOCK_SIZE_N + FILTER_BLOCK_SIZE_N) +
+				int s_index = load_k_id * (CONV_OUTER_BLOCK_SIZE_N + FILTER_BLOCK_SIZE_N) * (CONV_OUTER_BLOCK_SIZE_M + FILTER_BLOCK_SIZE_M) +
+					load_m_id * (CONV_OUTER_BLOCK_SIZE_N + FILTER_BLOCK_SIZE_N) +
 					load_n_id;
 
 				if (0 <= g_load_n_id &&
 					g_load_n_id < input_shape.width &&
 					0 <= g_load_m_id &&
 					g_load_m_id < input_shape.height &&
-					g_load_k_id < input_shape.depth) {
+					filter_no + g_load_k_id < input_shape.depth &&
+					b_elem < batch_size) {
 
 					int g_index = b_elem * input_shape.width * input_shape.height * input_shape.depth +
 						(filter_no + g_load_k_id) * input_shape.width * input_shape.height +
@@ -510,24 +525,25 @@ __global__ void d_filter_outer_convolve_2d(
 			int out_k_id = (b_tile_k + b_k_id) * output_shape.depth + f_k;
 
 			#pragma unroll
-			for (int b_m = 0; b_m < CONV_THREAD_BLOCK_M; b_m++) {
-				int b_m_id = m_id * CONV_THREAD_BLOCK_M + b_m;
+			for (int b_m = 0; b_m < CONV_OUTER_THREAD_BLOCK_M; b_m++) {
+				int b_m_id = m_id * CONV_OUTER_THREAD_BLOCK_M + b_m;
 				int out_m_id = b_tile_m + b_m_id;
 
 				#pragma unroll
-				for (int b_n = 0; b_n < CONV_THREAD_BLOCK_N; b_n++) {
-					int b_n_id = n_id * CONV_THREAD_BLOCK_N + b_n;
+				for (int b_n = 0; b_n < CONV_OUTER_THREAD_BLOCK_N; b_n++) {
+					int b_n_id = n_id * CONV_OUTER_THREAD_BLOCK_N + b_n;
 					int out_n_id = b_tile_n + b_n_id;
 
 					if (out_n_id < output_shape.width &&
 						out_m_id < output_shape.height &&
-						out_k_id < output_shape.depth) {
+						out_k_id < output_shape.depth &&
+						b_elem < batch_size) {
 
 						int out_index = (b_elem * output_shape.depth + out_k_id) * output_shape.width * output_shape.height +
 							out_m_id * output_shape.width +
 							out_n_id;
 
-						float inc = calculate_conv2d_dot<CONV_BLOCK_SIZE_N + FILTER_BLOCK_SIZE_N, CONV_BLOCK_SIZE_M + FILTER_BLOCK_SIZE_M, CONV_OUTER_THREAD_BLOCK_K>(
+						float inc = calculate_conv2d_dot<CONV_OUTER_BLOCK_SIZE_N + FILTER_BLOCK_SIZE_N, CONV_OUTER_BLOCK_SIZE_M + FILTER_BLOCK_SIZE_M, CONV_OUTER_THREAD_BLOCK_K>(
 							s_filter,
 							s_load_block,
 							b_n_id,
@@ -550,11 +566,12 @@ __global__ void d_filter_convolve_2d_derivative(
 	shape filter_shape,
 	shape filter_chunks,
 	shape output_shape,
+	shape padding,
 	int input_depth,
 	size_t batch_size) {
 
 	__shared__ float s_filter[FILTER_BLOCK_SIZE_N * FILTER_BLOCK_SIZE_M * FILTER_BLOCK_SIZE_K];
-	__shared__ float s_load_block[(CONV_BLOCK_SIZE_N + FILTER_BLOCK_SIZE_N) * (CONV_BLOCK_SIZE_M + FILTER_BLOCK_SIZE_M) * CONV_BLOCK_SIZE_K];
+	__shared__ float s_load_block[(CONV_DER_BLOCK_SIZE_N + FILTER_BLOCK_SIZE_N) * (CONV_DER_BLOCK_SIZE_M + FILTER_BLOCK_SIZE_M) * CONV_BLOCK_SIZE_K];
 
 	int n_id = threadIdx.x;
 	int m_id = threadIdx.y;
@@ -564,9 +581,9 @@ __global__ void d_filter_convolve_2d_derivative(
 	int f_tile_m = blockIdx.y % filter_chunks.height * FILTER_BLOCK_SIZE_M;
 	int f_tile_k = blockIdx.z % filter_chunks.depth * FILTER_BLOCK_SIZE_K;
 
-	int b_tile_n = (blockIdx.x / filter_chunks.width) * CONV_BLOCK_SIZE_N;
-	int b_tile_m = (blockIdx.y / filter_chunks.height) * CONV_BLOCK_SIZE_M;
-	int b_tile_k = (blockIdx.z / filter_chunks.depth) % input_depth * CONV_BLOCK_SIZE_K;
+	int b_tile_n = (blockIdx.x / filter_chunks.width) * CONV_DER_BLOCK_SIZE_N;
+	int b_tile_m = (blockIdx.y / filter_chunks.height) * CONV_DER_BLOCK_SIZE_M;
+	int b_tile_k = (blockIdx.z / filter_chunks.depth) % input_depth * CONV_DER_BLOCK_SIZE_K;
 
 	int b_elem = blockIdx.z / (filter_chunks.depth * input_depth);
 
@@ -575,17 +592,17 @@ __global__ void d_filter_convolve_2d_derivative(
 	//load filter chunk
 
 	#pragma unroll
-	for (int f_load_k = 0; f_load_k < FILTER_BLOCK_SIZE_K; f_load_k += CONV_THREAD_SIZE_K) {
+	for (int f_load_k = 0; f_load_k < FILTER_BLOCK_SIZE_K; f_load_k += CONV_DER_THREAD_SIZE_K) {
 		int load_k_id = f_load_k + k_id;
 		int g_load_k_id = f_tile_k + load_k_id;
 
 		#pragma unroll
-		for (int f_load_m = 0; f_load_m < FILTER_BLOCK_SIZE_M; f_load_m += CONV_THREAD_SIZE_M) {
+		for (int f_load_m = 0; f_load_m < FILTER_BLOCK_SIZE_M; f_load_m += CONV_DER_THREAD_SIZE_M) {
 			int load_m_id = f_load_m + m_id;
 			int g_load_m_id = f_tile_m + load_m_id;
 
 			#pragma unroll
-			for (int f_load_n = 0; f_load_n < FILTER_BLOCK_SIZE_N; f_load_n += CONV_THREAD_SIZE_N) {
+			for (int f_load_n = 0; f_load_n < FILTER_BLOCK_SIZE_N; f_load_n += CONV_DER_THREAD_SIZE_N) {
 				int load_n_id = f_load_n + n_id;
 				int g_load_n_id = f_tile_n + load_n_id;
 
@@ -616,25 +633,27 @@ __global__ void d_filter_convolve_2d_derivative(
 	//load input chunk
 
 	#pragma unroll
-	for (int b_load_k = 0; b_load_k < CONV_BLOCK_SIZE_K; b_load_k += CONV_THREAD_SIZE_K) {
+	for (int b_load_k = 0; b_load_k < CONV_DER_BLOCK_SIZE_K; b_load_k += CONV_DER_THREAD_SIZE_K) {
 		int load_k_id = b_load_k + k_id;
 		int g_load_k_id = b_tile_k + load_k_id;
 
 		#pragma unroll
-		for (int b_load_m = 0; b_load_m < CONV_BLOCK_SIZE_M + FILTER_BLOCK_SIZE_M; b_load_m += CONV_THREAD_SIZE_M) {
+		for (int b_load_m = 0; b_load_m < CONV_DER_BLOCK_SIZE_M + FILTER_BLOCK_SIZE_M; b_load_m += CONV_DER_THREAD_SIZE_M) {
 			int load_m_id = b_load_m + m_id;
-			int g_load_m_id = f_tile_m + b_tile_m + load_m_id;
+			int g_load_m_id = f_tile_m + b_tile_m + load_m_id - padding.height;
 
 			#pragma unroll
-			for (int b_load_n = 0; b_load_n < CONV_BLOCK_SIZE_N + FILTER_BLOCK_SIZE_N; b_load_n += CONV_THREAD_SIZE_N) {
+			for (int b_load_n = 0; b_load_n < CONV_DER_BLOCK_SIZE_N + FILTER_BLOCK_SIZE_N; b_load_n += CONV_DER_THREAD_SIZE_N) {
 				int load_n_id = b_load_n + n_id;
-				int g_load_n_id = f_tile_n + b_tile_n + load_n_id;
+				int g_load_n_id = f_tile_n + b_tile_n + load_n_id - padding.width;
 
-				int s_index = load_k_id * (CONV_BLOCK_SIZE_N + FILTER_BLOCK_SIZE_N) * (CONV_BLOCK_SIZE_M + FILTER_BLOCK_SIZE_M) +
-					load_m_id * (CONV_BLOCK_SIZE_N + FILTER_BLOCK_SIZE_N) +
+				int s_index = load_k_id * (CONV_DER_BLOCK_SIZE_N + FILTER_BLOCK_SIZE_N) * (CONV_DER_BLOCK_SIZE_M + FILTER_BLOCK_SIZE_M) +
+					load_m_id * (CONV_DER_BLOCK_SIZE_N + FILTER_BLOCK_SIZE_N) +
 					load_n_id;
 
-				if (g_load_n_id < input_shape.width &&
+				if (0 <= g_load_n_id &&
+					g_load_n_id < input_shape.width &&
+					0 <= g_load_m_id &&
 					g_load_m_id < input_shape.height &&
 					g_load_k_id < input_shape.depth) {
 
@@ -659,14 +678,14 @@ __global__ void d_filter_convolve_2d_derivative(
 	#pragma unroll
 	for (int filter_k = 0; filter_k < FILTER_BLOCK_SIZE_K; filter_k ++) {
 		#pragma unroll
-		for (int stride_k = 0; stride_k < CONV_THREAD_BLOCK_K; stride_k++) {
-			int start_k = k_id * CONV_THREAD_BLOCK_K + stride_k;
+		for (int stride_k = 0; stride_k < CONV_DER_THREAD_BLOCK_K; stride_k++) {
+			int start_k = k_id * CONV_DER_THREAD_BLOCK_K + stride_k;
 			#pragma unroll
-			for (int stride_m = 0; stride_m < CONV_THREAD_BLOCK_M; stride_m++) {
-				int start_m = m_id * CONV_THREAD_BLOCK_M + stride_m;
+			for (int stride_m = 0; stride_m < CONV_DER_THREAD_BLOCK_M; stride_m++) {
+				int start_m = m_id * CONV_DER_THREAD_BLOCK_M + stride_m;
 				#pragma unroll
-				for (int stride_n = 0; stride_n < CONV_THREAD_BLOCK_N; stride_n++) {
-					int start_n = n_id * CONV_THREAD_BLOCK_N + stride_n;
+				for (int stride_n = 0; stride_n < CONV_DER_THREAD_BLOCK_N; stride_n++) {
+					int start_n = n_id * CONV_DER_THREAD_BLOCK_N + stride_n;
 
 					int out_n_id = b_tile_n + start_n;
 					int out_m_id = b_tile_m + start_m;
@@ -683,9 +702,9 @@ __global__ void d_filter_convolve_2d_derivative(
 							out_m_id * output_shape.width +
 							out_n_id;
 
-						float inc = calculate_conv2d_dot<CONV_BLOCK_SIZE_N + FILTER_BLOCK_SIZE_N, CONV_BLOCK_SIZE_M + FILTER_BLOCK_SIZE_M, 1>(
+						float inc = calculate_conv2d_dot<CONV_DER_BLOCK_SIZE_N + FILTER_BLOCK_SIZE_N, CONV_DER_BLOCK_SIZE_M + FILTER_BLOCK_SIZE_M, 1>(
 							&s_filter[filter_k * FILTER_BLOCK_SIZE_N * FILTER_BLOCK_SIZE_M],
-							&s_load_block[start_k * (CONV_BLOCK_SIZE_N + FILTER_BLOCK_SIZE_N) * (CONV_BLOCK_SIZE_M + FILTER_BLOCK_SIZE_M)],
+							&s_load_block[start_k * (CONV_DER_BLOCK_SIZE_N + FILTER_BLOCK_SIZE_N) * (CONV_DER_BLOCK_SIZE_M + FILTER_BLOCK_SIZE_M)],
 							start_n,
 							start_m
 						);
@@ -1035,6 +1054,7 @@ void filter_convolve_2d(
 	shape input_shape, 
 	shape output_shape, 
 	shape filter_shape, 
+	shape padding,
 	size_t batch_size)
 {
 	//dim3 threads_per_block(CONV_THREAD_SIZE_N, CONV_THREAD_SIZE_M, CONV_THREAD_SIZE_K);
@@ -1048,9 +1068,9 @@ void filter_convolve_2d(
 
 	dim3 threads_per_block(CONV_THREAD_SIZE_N, CONV_THREAD_SIZE_M, CONV_THREAD_SIZE_K);
 	dim3 blocks_per_grid(
-		ceil_div(CONV_BLOCK_SIZE_N, input_shape.width) * filter_chunks.width, 
-		ceil_div(CONV_BLOCK_SIZE_M, input_shape.height) * filter_chunks.height, 
-		batch_size * filter_chunks.depth
+		ceil_div(CONV_BLOCK_SIZE_N, input_shape.width + padding.width) * filter_chunks.width, 
+		ceil_div(CONV_BLOCK_SIZE_M, input_shape.height + padding.width) * filter_chunks.height, 
+		ceil_div(CONV_BATCH_DEPTH, batch_size) * filter_chunks.depth
 	);
 
 	for (int filter = 0; filter < output_shape.depth; filter++)
@@ -1076,6 +1096,7 @@ void filter_convolve_2d(
 			filter_shape,
 			filter_chunks,
 			output_shape,
+			padding,
 			filter,
 			output_shape.depth,
 			batch_size
@@ -1120,6 +1141,7 @@ void filter_outer_convolve_2d(
 	shape input_shape, 
 	shape output_shape, 
 	shape filter_shape, 
+	shape padding,
 	size_t batch_size)
 {
 	shape filter_chunks = shape(
@@ -1130,10 +1152,10 @@ void filter_outer_convolve_2d(
 
 	//dim3 threads_per_block(CONV_EXP_THREAD_SIZE_N, CONV_EXP_THREAD_SIZE_M, 1);
 	//dim3 blocks_per_grid(ceil_div(CONV_EXP_BLOCK_SIZE_N, input_shape.width), ceil_div(CONV_EXP_BLOCK_SIZE_M, input_shape.height), batch_size);
-	dim3 threads_per_block(CONV_THREAD_SIZE_N, CONV_THREAD_SIZE_M, CONV_OUTER_THREAD_SIZE_K);
+	dim3 threads_per_block(CONV_OUTER_THREAD_SIZE_N, CONV_OUTER_THREAD_SIZE_M, CONV_OUTER_THREAD_SIZE_K);
 	dim3 blocks_per_grid(
-		ceil_div(CONV_BLOCK_SIZE_N, input_shape.width) * filter_chunks.width, 
-		ceil_div(CONV_BLOCK_SIZE_M, input_shape.height) * filter_chunks.height, 
+		ceil_div(CONV_OUTER_BLOCK_SIZE_N, input_shape.width) * filter_chunks.width,
+		ceil_div(CONV_OUTER_BLOCK_SIZE_M, input_shape.height) * filter_chunks.height,
 		ceil_div(CONV_OUTER_BLOCK_SIZE_K, input_shape.depth) * filter_chunks.depth * batch_size
 	);
 	//dim3 blocks_per_grid(1, 1, batch_size);
@@ -1156,8 +1178,10 @@ void filter_outer_convolve_2d(
 			filter_shape,
 			filter_chunks,
 			output_shape,
+			padding,
 			ceil_div(CONV_OUTER_BLOCK_SIZE_K, input_shape.depth),
-			filter
+			filter,
+			batch_size
 		);
 	}
 }
@@ -1170,6 +1194,7 @@ void filter_convolve_2d_derivative(
 	shape input_shape, 
 	shape pd_shape, 
 	shape output_shape, 
+	shape padding,
 	size_t batch_size)
 {
 	shape filter_chunks = shape(
@@ -1178,11 +1203,11 @@ void filter_convolve_2d_derivative(
 		ceil_div(FILTER_BLOCK_SIZE_K, pd_shape.depth)
 	);	
 
-	dim3 threads_per_block(CONV_THREAD_SIZE_N, CONV_THREAD_SIZE_M, CONV_THREAD_SIZE_K);
+	dim3 threads_per_block(CONV_DER_THREAD_SIZE_N, CONV_DER_THREAD_SIZE_M, CONV_DER_THREAD_SIZE_K);
 	dim3 blocks_per_grid(
-		ceil_div(CONV_BLOCK_SIZE_N, input_shape.width) * filter_chunks.width,
-		ceil_div(CONV_BLOCK_SIZE_M, input_shape.height) * filter_chunks.height,
-		ceil_div(CONV_BLOCK_SIZE_K, input_shape.depth) * filter_chunks.depth * batch_size
+		ceil_div(CONV_DER_BLOCK_SIZE_N, input_shape.width) * filter_chunks.width,
+		ceil_div(CONV_DER_BLOCK_SIZE_M, input_shape.height) * filter_chunks.height,
+		ceil_div(CONV_DER_BLOCK_SIZE_K, input_shape.depth) * filter_chunks.depth * batch_size
 	);
 
 	d_filter_convolve_2d_derivative<<<blocks_per_grid, threads_per_block>>>(
@@ -1193,7 +1218,8 @@ void filter_convolve_2d_derivative(
 		pd_shape,
 		filter_chunks,
 		output_shape,
-		ceil_div(CONV_BLOCK_SIZE_K, input_shape.depth),
+		padding,
+		ceil_div(CONV_DER_BLOCK_SIZE_K, input_shape.depth),
 		batch_size
 	);
 	

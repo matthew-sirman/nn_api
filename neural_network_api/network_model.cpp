@@ -40,26 +40,24 @@ namespace nn {
 		add(biases);
 	}*/
 
-	void network_model::dense(size_t units) {
-		size_t last_layer_size = instructions.back()->output_shape.size();
-
-		tensor weights = tensor::random({ units, last_layer_size }, -0.1, 0.1);
+	void network_model::dense(size_t input_size, size_t units) {
+		tensor weights = tensor::random({ units, input_size }, -0.1, 0.1);
 		tensor biases = tensor::random(units, -0.1, 0.1);
 		mul(weights);
 		add(biases);
 	}
 
-	void network_model::conv2d(shape filter_shape, size_t n_filters)
+	void network_model::conv2d(shape filter_shape, size_t n_filters, shape padding)
 	{
 		tensor filter = tensor::random({ filter_shape.width, filter_shape.height, filter_shape.depth, n_filters }, -0.1, 0.1);
-		conv2d(filter);
+		conv2d(filter, padding);
 	}
 
-	void network_model::conv2d(tensor filter)
+	void network_model::conv2d(tensor filter, shape padding)
 	{
 		if (filter.get_dimensions() != 4)
 			throw exception("Conv2d filter must be four dimensional (width, height, depth, filters)");
-		conv2d_function * f = new conv2d_function(filter);
+		conv2d_function * f = new conv2d_function(filter, padding);
 		instructions.push_back(f);
 		train_funcs.push_back(f);
 	}
@@ -346,9 +344,6 @@ namespace nn {
 		if (!model_initialised)
 			throw exception("Model not initialised");
 
-		if (b_iter.get_batch_size() != batch_size)
-			throw exception("Iterator and model batch sizes are different");
-
 		b_iter.initialise(batch_size);
 
 		size_t num = b_iter.get_size();
@@ -369,6 +364,7 @@ namespace nn {
 			}
 
 			cost_func->clear_loss();
+			float epoch_loss = 0;
 
 			for (int batch = 0; batch < n_batches; batch++) {
 				if (analytics_logger != nullptr) {
@@ -381,6 +377,7 @@ namespace nn {
 						current_batch_size = batch_size;
 				}
 
+				b_iter.next_batch();
 				tensor * train_x = b_iter.get_next_batch();
 				tensor * train_y = b_iter.get_next_batch_labels();
 
@@ -401,6 +398,8 @@ namespace nn {
 
 				//printf("##########################################\n");
 				
+				epoch_loss += cost_func->get_average_loss() * current_batch_size;
+
 				if (analytics_logger != nullptr) {
 					analytics_logger->on_step_end(cost_func->get_average_loss());
 				}
@@ -416,7 +415,7 @@ namespace nn {
 			}*/
 
 			if (analytics_logger != nullptr) {
-				analytics_logger->on_epoch_end(cost_func->get_average_loss());
+				analytics_logger->on_epoch_end(epoch_loss / num);
 			}
 		}
 
@@ -429,6 +428,8 @@ namespace nn {
 	{
 		if (!model_initialised)
 			throw exception("Model not initialised");
+
+		b_iter.initialise(batch_size);
 
 		/*if (input.get_dimensions() != 1)
 			throw exception("Input tensor must be one dimenional");
@@ -459,6 +460,7 @@ namespace nn {
 					current_batch_size = batch_size;
 			}
 
+			b_iter.next_batch();
 			d_in_batch = b_iter.get_next_batch()->get_dev_pointer();
 
 			d_in_layer = d_in_batch;

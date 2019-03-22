@@ -42,6 +42,8 @@ constexpr auto AVERAGE_CHUNK_SIZE = 16;
 constexpr auto M_TILE_SIZE_X = 64;
 constexpr auto M_TILE_SIZE_Y = 16;
 
+typedef unsigned char byte;
+
 template <unsigned int block_size>
 __device__ void warp_reduce(volatile float * s_cost, int tid);
 template <unsigned int block_size>
@@ -77,8 +79,8 @@ void transpose(float * d_matrix_p, float * d_output_p, int rows, int cols);
 //void distributive_hadamard_transpose(float * d_input_p, float * d_matrix_p, float * d_output_p, int mat_rows, int mat_colse, int cols, int vector_size, int num);
 
 void average_vector(float * d_matrix, float * d_output_p, int size, int num, int divisor);
-template <typename T_i, typename T_o>
-extern void scalar_matrix_multiply(T_i * d_matrix, T_o * d_output_p, float scalar, int size);
+void scalar_matrix_multiply_f(float * d_matrix, float * d_output_p, float scalar, int size);
+extern NN_LIB_API void scalar_matrix_multiply_b(byte * d_matrix, float * d_output_p, float scalar, int size);
 
 void average_value(float * d_input_p, float * average, int size);
 void average_value(float * d_input_p, float * average, int size, float divisor);

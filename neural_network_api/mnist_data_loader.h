@@ -18,8 +18,8 @@ using namespace std;
 class NN_LIB_API mnist_data_loader : public batch_iterator
 {
 public:
-	mnist_data_loader(string file_path, bool one_hot = true);
-	mnist_data_loader(string file_path, size_t batch_size, bool one_hot = true);
+	mnist_data_loader(string file_path, bool one_hot = true, int classes = 10);
+	mnist_data_loader(string file_path, size_t batch_size, bool one_hot = true, int classes = 10);
 	~mnist_data_loader();
 
 	void load_data_set(string file_name);
@@ -30,8 +30,6 @@ public:
 	tensor * get_next_batch() override;
 	tensor * get_next_batch_labels() override;
 	void reset_iterator() override;
-	inline size_t get_size() override { return n_items; }
-	inline size_t get_batch_size() override { return batch_size; }
 	void initialise(size_t batch_size) override;
 
 private:
@@ -39,7 +37,8 @@ private:
 
 	string file_path;
 	string d_file_name, l_file_name;
-	size_t batch_size;
+
+	size_t n_classes;
 
 	bool one_hot = true;
 
@@ -48,12 +47,12 @@ private:
 
 	int magic_num;
 	int magic_num_labels;
-	size_t n_items = -1;
-	int n_rows;
-	int n_cols;
+
+	size_t n_rows;
+	size_t n_cols;
 
 	char * data_buffer;
-	unsigned char * d_data_buffer;
+	byte * d_data_buffer;
 
 	char * label_buffer;
 	float * onehot_labels;

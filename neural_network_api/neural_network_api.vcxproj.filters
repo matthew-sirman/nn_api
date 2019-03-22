@@ -78,6 +78,12 @@
     <ClInclude Include="analytics.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="cifar_data_loader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="heirarchy_image_loader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="analytics.cpp">
@@ -114,6 +120,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="neural_network_api.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="heirarchy_image_loader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

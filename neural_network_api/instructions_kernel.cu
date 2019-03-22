@@ -1100,8 +1100,15 @@ __global__ void d_average_vector(float * input, float * output, int input_size, 
 	}
 }
 
-template <typename T_i, typename T_o>
-__global__ void d_scalar_matrix_mul(T_i * input, T_o * output, float scalar, int size) {
+__global__ void d_scalar_matrix_mul_f(float * input, float * output, float scalar, int size) {
+	int tid = threadIdx.x + blockIdx.x * blockDim.x;
+
+	if (tid < size) {
+		output[tid] = input[tid] * scalar;
+	}
+}
+
+__global__ void d_scalar_matrix_mul_b(byte * input, float * output, float scalar, int size) {
 	int tid = threadIdx.x + blockIdx.x * blockDim.x;
 
 	if (tid < size) {
@@ -2006,8 +2013,7 @@ void average_vector(float * d_matrix, float * d_output_p, int size, int num, int
 	}
 }
 
-template <typename T_i, typename T_o>
-extern void scalar_matrix_multiply(T_i * d_matrix, T_o * d_output_p, float scalar, int size)
+void scalar_matrix_multiply_f(float * d_matrix, float * d_output_p, float scalar, int size)
 {
 	dim3 threads_per_block(size, 1);
 	dim3 blocks_per_grid(1, 1);
@@ -2015,11 +2021,19 @@ extern void scalar_matrix_multiply(T_i * d_matrix, T_o * d_output_p, float scala
 		threads_per_block.x = BLOCK_SIZE;
 		blocks_per_grid.x = ceil_div(BLOCK_SIZE, size);
 	}
-	d_scalar_matrix_mul<T_i, T_o><<<blocks_per_grid, threads_per_block>>>(d_matrix, d_output_p, scalar, size);
+	d_scalar_matrix_mul_f<<<blocks_per_grid, threads_per_block>>>(d_matrix, d_output_p, scalar, size);
 }
 
-template void scalar_matrix_multiply<float, float>(float *, float *, float, int);
-template void scalar_matrix_multiply<unsigned char, float>(unsigned char *, float *, float, int);
+void scalar_matrix_multiply_b(byte * d_matrix, float * d_output_p, float scalar, int size)
+{
+	dim3 threads_per_block(size, 1);
+	dim3 blocks_per_grid(1, 1);
+	if (size > BLOCK_SIZE) {
+		threads_per_block.x = BLOCK_SIZE;
+		blocks_per_grid.x = ceil_div(BLOCK_SIZE, size);
+	}
+	d_scalar_matrix_mul_b<<<blocks_per_grid, threads_per_block>>>(d_matrix, d_output_p, scalar, size);
+}
 
 void average_value(float * d_input_p, float * average, int size)
 {

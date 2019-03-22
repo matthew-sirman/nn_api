@@ -219,8 +219,8 @@ namespace nn {
 	{
 	public:
 		conv2d_function() {};
-		conv2d_function(shape input_shape, shape filter_shape, size_t n_filters = 1);
-		conv2d_function(tensor filter);
+		conv2d_function(shape input_shape, shape filter_shape, size_t n_filters = 1, shape padding = (0, 0));
+		conv2d_function(tensor filter, shape padding = (0, 0));
 		~conv2d_function();
 
 		void run(float * input) override;
@@ -236,6 +236,7 @@ namespace nn {
 
 		void avg_partial_derivatives(float * current_pds, int num) override;
 
+		size_t get_serialise_size() override;
 		void serialise(char * stream_buffer, size_t offset) override;
 		void deserialise(char * stream_buffer, size_t offset) override;
 
@@ -244,6 +245,7 @@ namespace nn {
 		inline tensor & get_filter() { return train_tensor; }
 	private:
 		shape filter_shape;
+		shape padding;
 
 		float * d_tmp_backprop_output;
 	};

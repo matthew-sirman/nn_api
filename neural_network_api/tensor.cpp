@@ -199,8 +199,9 @@ void tensor::serialise(char * stream_buffer, size_t offset)
 	size_t n_dims = shape.size();
 	memcpy(&stream_buffer[offset], &n_dims, sizeof(size_t));
 	for (int dim = 0; dim < n_dims; dim++) {
-		memcpy(&stream_buffer[offset + sizeof(size_t) + dim * sizeof(size_t)], reinterpret_cast<char*>(reinterpret_cast<void*>(&shape[dim])), sizeof(size_t) * n_dims);
+		memcpy(&stream_buffer[offset + sizeof(size_t) + dim * sizeof(size_t)], reinterpret_cast<char*>(reinterpret_cast<void*>(&shape[dim])), sizeof(size_t));
 	}
+	size_t size = get_size();
 	//memcpy(&stream_buffer[offset + sizeof(size_t) + sizeof(size_t) * n_dims], data, sizeof(float) * get_size());
 	cuda_safe_call(cudaMemcpy(&stream_buffer[offset + sizeof(size_t) + sizeof(size_t) * n_dims], d_data, sizeof(float) * get_size(), cudaMemcpyDeviceToHost));
 }

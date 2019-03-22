@@ -6,7 +6,18 @@
 #define NN_LIB_API __declspec(dllimport)
 #endif
 
+#include <string>
+#include <fstream>
+
+#include <boost\tuple\tuple.hpp>
+
+#include "gnuplot-iostream.h"
+
 #include "timer.h"
+
+constexpr auto GRAPH_PLOT_STEP_COUNT = 100;
+
+using namespace std;
 
 enum NN_LIB_API log_output_type {
 	PER_EPOCH = 0x01,
@@ -49,7 +60,13 @@ public:
 	void on_epoch_end(float avg_loss = 0);
 	void on_step_end(float avg_loss = 0);
 
+	void plot();
+
 private:
+	//Gnuplot * gp;
+	FILE * plot_str;
+	std::vector<std::pair<double, double>> plot_data;
+
 	int log_type = log_output_type::PER_EPOCH;
 	int log_props = log_property::STEP | log_property::TIME_STAMP | log_property::AVG_LOSS;
 
@@ -64,5 +81,8 @@ private:
 
 	timer tmr;
 	timer step_tmr;
+
+	bool plotting = false;
+	float max_avg_cost = 0;
 };
 

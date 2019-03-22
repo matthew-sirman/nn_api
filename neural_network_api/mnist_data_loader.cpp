@@ -2,16 +2,17 @@
 
 #include "mnist_data_loader.h"
 
-mnist_data_loader::mnist_data_loader(string file_path, bool one_hot)
-	: mnist_data_loader(file_path, 0, true)
+mnist_data_loader::mnist_data_loader(string file_path, bool one_hot, int classes)
+	: mnist_data_loader(file_path, 0, one_hot, classes)
 {
 }
 
-mnist_data_loader::mnist_data_loader(string file_path, size_t batch_size, bool one_hot)
+mnist_data_loader::mnist_data_loader(string file_path, size_t batch_size, bool one_hot, int classes)
 {
 	this->file_path = file_path;
 	this->batch_size = batch_size;
 	this->one_hot = one_hot;
+	this->n_classes = classes;
 }
 
 mnist_data_loader::~mnist_data_loader()
@@ -23,6 +24,9 @@ void mnist_data_loader::load_data_set(string file_name)
 	char buffer[16];
 
 	ifstream data_stream = ifstream(file_path + "\\" + file_name, ios::binary);
+	if (data_stream.fail()) {
+		throw new exception((string("Failed to load file ") + file_name).c_str());
+	}
 	d_file_name = file_name;
 
 	data_stream.seekg(0, data_stream.end);
@@ -57,6 +61,9 @@ void mnist_data_loader::load_data_set_labels(string file_name)
 	char buffer[8];
 
 	ifstream label_stream = ifstream(file_path + "\\" + file_name, ios::binary);
+	if (label_stream.fail()) {
+		throw new exception((string("Failed to load file ") + file_name).c_str());
+	}
 	l_file_name = file_name;
 
 	label_stream.seekg(0, label_stream.end);
@@ -84,6 +91,8 @@ void mnist_data_loader::load_data_set_labels(string file_name)
 
 void mnist_data_loader::close()
 {
+	if (!initialised)
+		return;
 	cuda_safe_call(cudaFree(d_data_buffer));
 	free(data_buffer);
 	free(label_buffer);
@@ -102,17 +111,17 @@ tensor * mnist_data_loader::get_next_batch()
 
 	if (length >= sizeof(char) * batch_size * n_rows * n_cols) {
 		length = sizeof(char) * batch_size * n_rows * n_cols;
-		data->set_shape({ (size_t)batch_size, (size_t)(n_rows * n_cols) });
+		data->set_shape({ batch_size, n_rows * n_cols });
 	}
 	else {
 		memset(data_buffer, 0, sizeof(char) * batch_size * n_rows * n_cols);
-		data->set_shape({ (size_t)(n_items % batch_size), (size_t)(n_rows * n_cols) });		
+		data->set_shape({ n_items % batch_size, n_rows * n_cols });	
 	}
 	
 	data_stream.read(data_buffer, length);
 
 	cuda_safe_call(cudaMemcpy(d_data_buffer, data_buffer, sizeof(char) * batch_size * n_rows * n_cols, cudaMemcpyHostToDevice));
-	scalar_matrix_multiply<unsigned char, float>(d_data_buffer, data->get_dev_pointer(), 1.0 / 255.0, batch_size * n_rows * n_cols);
+	scalar_matrix_multiply_b(d_data_buffer, data->get_dev_pointer(), 1.0 / 255.0, batch_size * n_rows * n_cols);
 
 	data_stream.close();
 	d_s_index += length;
@@ -128,34 +137,32 @@ tensor * mnist_data_loader::get_next_batch_labels()
 	size_t length = (size_t)label_stream.tellg() - l_s_index;
 	label_stream.seekg(l_s_index);
 
-	int current_batch_size = batch_size;
+	size_t current_batch_size = batch_size;
 
 	if (one_hot) {
 		if (length >= sizeof(char) * batch_size) {
 			length = sizeof(char) * batch_size;
-			labels->set_shape({ (size_t)batch_size, 10 });
+			labels->set_shape({ batch_size, n_classes });
 		}
 		else {
 			current_batch_size = n_items % batch_size;
 
 			memset(label_buffer, 0, sizeof(char) * batch_size);
-			data->set_shape({ (size_t)current_batch_size, 10 });
+			data->set_shape({ current_batch_size, n_classes });
 		}
 
-		memset(onehot_labels, 0, sizeof(float) * batch_size * 10);
+		memset(onehot_labels, 0, sizeof(float) * batch_size * n_classes);
 
 		label_stream.read(label_buffer, length);
 
 		for (int i = 0; i < current_batch_size; i++) {
-			onehot_labels[10 * i + label_buffer[i]] = 1;
+			onehot_labels[n_classes * i + label_buffer[i]] = 1;
 		}
 
-		cuda_safe_call(cudaMemcpy(labels->get_dev_pointer(), onehot_labels, sizeof(float) * batch_size * 10, cudaMemcpyHostToDevice));
+		cuda_safe_call(cudaMemcpy(labels->get_dev_pointer(), onehot_labels, sizeof(float) * batch_size * n_classes, cudaMemcpyHostToDevice));
 
 		label_stream.close();
 		l_s_index += length;
-
-		return labels;
 	}
 	else {
 		if (length >= sizeof(char) * batch_size) {
@@ -181,9 +188,9 @@ tensor * mnist_data_loader::get_next_batch_labels()
 
 		label_stream.close();
 		l_s_index += length;
-
-		return labels;
 	}
+
+	return labels;
 }
 
 void mnist_data_loader::reset_iterator()
@@ -203,21 +210,21 @@ void mnist_data_loader::initialise(size_t batch_size)
 	data_buffer = (char *)malloc(sizeof(char) * batch_size * n_rows * n_cols);
 	cuda_safe_call(cudaMallocManaged(&d_data_buffer, sizeof(char) * batch_size * n_rows * n_cols));
 
-	data = new tensor({ (size_t)(batch_size), (size_t)(n_rows * n_cols) });
+	data = new tensor({ batch_size, n_rows * n_cols });
 	data->initialise();
 
 	//initialise label reader
 	label_buffer = (char *)malloc(sizeof(char) * batch_size);
-	onehot_labels = (float *)malloc(sizeof(float) * batch_size * 10);
+	onehot_labels = (float *)malloc(sizeof(float) * batch_size * n_classes);
 	index_labels = (float *)malloc(sizeof(float) * batch_size);
 
 	if (one_hot) {
-		labels = new tensor({ (size_t)batch_size, 10 });
+		labels = new tensor({ batch_size, n_classes });
 		labels->initialise();
-		cuda_safe_call(cudaMemset(labels->get_dev_pointer(), 0, sizeof(float) * batch_size * 10));
+		cuda_safe_call(cudaMemset(labels->get_dev_pointer(), 0, sizeof(float) * batch_size * n_classes));
 	}
 	else {
-		labels = new tensor({ (size_t)batch_size });
+		labels = new tensor({ batch_size });
 		labels->initialise();
 		cuda_safe_call(cudaMemset(labels->get_dev_pointer(), 0, sizeof(float) * batch_size));
 	}
