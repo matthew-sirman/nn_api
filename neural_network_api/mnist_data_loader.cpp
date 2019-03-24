@@ -98,6 +98,8 @@ void mnist_data_loader::close()
 	free(label_buffer);
 	free(onehot_labels);
 	free(index_labels);
+	data->uninitialise();
+	labels->uninitialise();
 	initialised = false;
 }
 

@@ -830,6 +830,13 @@ __global__ void d_apply_relu(float *input, float *output, int size, float alpha)
 	}
 }
 
+__global__ void d_apply_tanh(float * input, float * output, int size) {
+	int id = threadIdx.x + blockDim.x * blockIdx.x;
+	if (id < size) {
+		output[id] = tanhf(input[id]);
+	}
+}
+
 template <unsigned int block_size>
 __global__ void d_apply_softmax(float *input, float *output, int input_size, float beta) {
 	__shared__ float s_sum[block_size * 2], s_exp_vals[block_size * 2];
@@ -952,6 +959,14 @@ __global__ void d_relu_derivative(float * input, float * output, int size, float
 			output[tid] = 1;
 		else
 			output[tid] = alpha;
+	}
+}
+
+__global__ void d_tanh_derivative(float * input, float * output, int size) {
+	int id = threadIdx.x + blockDim.x * blockIdx.x;
+	if (id < size) {
+		float tmp = tanhf(input[id]);
+		output[id] = 1 - tmp * tmp;
 	}
 }
 
@@ -1842,6 +1857,18 @@ void apply_relu(float * d_input_p, float * d_output_p, int size, float alpha)
 	d_apply_relu<<<blocks_per_grid, threads_per_block>>>(d_input_p, d_output_p, size, alpha);
 }
 
+void apply_tanh(float * d_input_p, float * d_output_p, int size)
+{
+	//cuda_safe_call(cudaMemcpy(d_output_p, d_input_p, sizeof(float) * size, cudaMemcpyDeviceToDevice));
+	dim3 threads_per_block(size);
+	dim3 blocks_per_grid(1);
+	if (size > BLOCK_SIZE) {
+		threads_per_block.x = BLOCK_SIZE;
+		blocks_per_grid.x = ceil((float)size / BLOCK_SIZE);
+	}
+	d_apply_tanh<<<blocks_per_grid, threads_per_block>>>(d_input_p, d_output_p, size);
+}
+
 void apply_softmax(float * d_input_p, float * d_output_p, int input_size, int num, float beta)
 {
 	/*float * test = (float *)malloc(sizeof(float) * 10);
@@ -1909,6 +1936,17 @@ void relu_derivative(float * d_input_p, float * d_output_p, int size, float alph
 		blocks_per_grid.x = ceil_div(BLOCK_SIZE, size);
 	}
 	d_relu_derivative<<<blocks_per_grid, threads_per_block>>>(d_input_p, d_output_p, size, alpha);
+}
+
+void tanh_derivative(float * d_input_p, float * d_output_p, int size)
+{
+	dim3 threads_per_block(size);
+	dim3 blocks_per_grid(1);
+	if (size > BLOCK_SIZE) {
+		threads_per_block.x = BLOCK_SIZE;
+		blocks_per_grid.x = ceil_div(BLOCK_SIZE, size);
+	}
+	d_tanh_derivative<<<blocks_per_grid, threads_per_block>>>(d_input_p, d_output_p, size);
 }
 
 void batch_norm(float * d_input_p, float * d_output_p, int size, int num)

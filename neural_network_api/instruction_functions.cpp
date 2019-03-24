@@ -487,6 +487,12 @@ namespace nn {
 
 	void relu_function::run_derivative(float* input)
 	{
+		/*float * pds = (float *)malloc(sizeof(float) * 28 * 28 * 8);
+		cudaMemcpy(pds, input, sizeof(float) * 28 * 28 * 8, cudaMemcpyDeviceToHost);
+
+		for (int i = 0; i < 10; i++)
+			printf("pds[%d] = %f\n", i, pds[i]);*/
+
 		relu_derivative(input, d_der_vector, input_shape.size() * batch_size, 0);
 	}
 
@@ -588,6 +594,63 @@ namespace nn {
 		instruction_function::deserialise(stream_buffer, offset);
 		size_t new_offset = instruction_function::get_serialise_size();
 		memcpy(&alpha, reinterpret_cast<float*>(reinterpret_cast<void*>(&stream_buffer[new_offset])), sizeof(float));
+	}
+
+	tanh_function::tanh_function()
+		: tanh_function(0)
+	{
+	}
+
+	tanh_function::tanh_function(size_t input_size)
+	{
+		this->input_shape = shape(input_size);
+		this->output_shape = shape(input_size);
+	}
+
+	tanh_function::~tanh_function()
+	{
+	}
+
+	void tanh_function::run(float * input)
+	{
+		run(input, 1);
+	}
+
+	void tanh_function::run(float * input, int batch_size)
+	{
+		apply_tanh(input, d_out_vector, input_shape.size() * batch_size);
+	}
+
+	void tanh_function::run_derivative(float * input)
+	{
+		tanh_derivative(input, d_der_vector, input_shape.size() * batch_size);
+	}
+
+	void tanh_function::back_propagate(float * current_pds, int batch_size)
+	{
+		hadamard_product(current_pds, get_derivative_vector(), current_pds, input_shape.size() * batch_size);
+	}
+
+	void tanh_function::initialise()
+	{
+		initialise(1);
+	}
+
+	void tanh_function::initialise(size_t batch_size)
+	{
+		instruction_function::initialise(batch_size);
+		allocate_device_pointer(&d_der_vector, input_shape.size() * batch_size);
+	}
+
+	void tanh_function::uninitialise()
+	{
+		instruction_function::uninitialise();
+		deallocate_device_pointer(d_der_vector);
+	}
+
+	void tanh_function::serialise(char * stream_buffer, size_t offset)
+	{
+		__serialise(stream_buffer, offset, function_id::TANH);
 	}
 
 	softmax::softmax()

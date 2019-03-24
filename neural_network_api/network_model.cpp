@@ -13,8 +13,17 @@ namespace nn {
 	{
 	}
 
+	void network_model::entry(shape entry_shape)
+	{
+		this->init_layer_shape = entry_shape;
+		__ent_spec = true;
+	}
+
 	void network_model::add(tensor biases)
 	{
+		if (!__ent_spec)
+			throw exception("Entry size not specified");
+
 		if (biases.get_dimensions() != 1)
 			throw exception("Bias tensor must be one dimensional");
 
@@ -25,11 +34,15 @@ namespace nn {
 
 	void network_model::mul(tensor weights)
 	{
+		if (!__ent_spec)
+			throw exception("Entry size not specified");
+
 		if (weights.get_dimensions() != 2)
 			throw exception("Weight tensor must be two dimensional");
 		mul_function * f = new mul_function(weights);
 		instructions.push_back(f);
 		train_funcs.push_back(f);
+		this->init_layer_shape = shape(weights.get_shape()[0]);
 	}
 
 	/*void network_model::dense(size_t in_size, size_t out_size)
@@ -40,51 +53,92 @@ namespace nn {
 		add(biases);
 	}*/
 
-	void network_model::dense(size_t input_size, size_t units) {
-		tensor weights = tensor::random({ units, input_size }, -0.1, 0.1);
+	void network_model::dense(size_t units) {
+		if (!__ent_spec)
+			throw exception("Entry size not specified");
+
+		tensor weights = tensor::random({ units, init_layer_shape.width }, -0.1, 0.1);
 		tensor biases = tensor::random(units, -0.1, 0.1);
 		mul(weights);
 		add(biases);
+		init_layer_shape = shape(units);
 	}
 
 	void network_model::conv2d(shape filter_shape, size_t n_filters, shape padding)
 	{
+		if (!__ent_spec)
+			throw exception("Entry size not specified");
+
 		tensor filter = tensor::random({ filter_shape.width, filter_shape.height, filter_shape.depth, n_filters }, -0.1, 0.1);
 		conv2d(filter, padding);
 	}
 
 	void network_model::conv2d(tensor filter, shape padding)
 	{
+		if (!__ent_spec)
+			throw exception("Entry size not specified");
+
 		if (filter.get_dimensions() != 4)
 			throw exception("Conv2d filter must be four dimensional (width, height, depth, filters)");
 		conv2d_function * f = new conv2d_function(filter, padding);
 		instructions.push_back(f);
 		train_funcs.push_back(f);
+		f->set_input_shape(init_layer_shape);
+		init_layer_shape = f->output_shape;
 	}
 
 	void network_model::pool(shape pool_size, shape stride)
 	{
-		instructions.push_back(new pool_function(pool_size, stride));
+		if (!__ent_spec)
+			throw exception("Entry size not specified");
+
+		pool_function * f = new pool_function(pool_size, stride);
+		instructions.push_back(f);
+		f->set_input_shape(init_layer_shape);
+		init_layer_shape = f->output_shape;
 	}
 
 	void network_model::flatten()
 	{
-		instructions.push_back(new flatten_function(shape(1)));
+		if (!__ent_spec)
+			throw exception("Entry size not specified");
+
+		flatten_function * f = new flatten_function(init_layer_shape);
+		instructions.push_back(f);
+		init_layer_shape = f->output_shape;
 	}
 
 	void network_model::reshape(shape output_shape)
 	{
-		instructions.push_back(new reshape_function(shape(1), output_shape));
+		if (!__ent_spec)
+			throw exception("Entry size not specified");
+
+		instructions.push_back(new reshape_function(init_layer_shape, output_shape));
+		init_layer_shape = output_shape;
 	}
 
 	void network_model::relu()
 	{
-		instructions.push_back(new relu_function());
+		if (!__ent_spec)
+			throw exception("Entry size not specified");
+
+		instructions.push_back(new relu_function(init_layer_shape.size()));
 	}
 
 	void network_model::leaky_relu(float alpha)
 	{
-		instructions.push_back(new leaky_relu_function(0, alpha));
+		if (!__ent_spec)
+			throw exception("Entry size not specified");
+
+		instructions.push_back(new leaky_relu_function(init_layer_shape.size(), alpha));
+	}
+
+	void network_model::tanh()
+	{
+		if (!__ent_spec)
+			throw exception("Entry size not specified");
+
+		instructions.push_back(new tanh_function(init_layer_shape.size()));
 	}
 
 	/*void network_model::softmax()
@@ -112,39 +166,41 @@ namespace nn {
 		initialise_model(1);
 	}
 
-	void network_model::initialise_model(size_t batch_size) {
+	/*void network_model::initialise_model(size_t batch_size) {
 		initialise_model(instructions[0]->input_shape, batch_size);
-	}
+	}*/
 
-	void network_model::initialise_model(shape input_shape, size_t batch_size)
+	void network_model::initialise_model(size_t batch_size)
 	{
 		if (instructions.size() == 0)
 			throw std::exception("Cannot initialise empty model");
 
-		instructions[0]->set_input_shape(input_shape);
-		layer_shapes.push_back(instructions[0]->input_shape);
+		//instructions[0]->set_input_shape(input_shape);
+		//layer_shapes.push_back(instructions[0]->input_shape);
 
-		shape prev_layer_shape = instructions[0]->input_shape;
+		//shape prev_layer_shape = instructions[0]->input_shape;
 
-		largest_layer_size = prev_layer_shape.size();
+		largest_layer_size = -1; // prev_layer_shape.size();
 
 		for (int i = 0; i < instructions.size(); i++) {
-			if (instructions[i]->input_shape.size() == 0 || 
+			/*if (instructions[i]->input_shape.size() == 0 ||
 				instructions[i]->input_shape.size() == 1) {
 
 				instructions[i]->set_input_shape(prev_layer_shape);
 			}
 			else if (instructions[i]->input_shape != prev_layer_shape)
-				throw exception(("Layer tensor shape cannot change from " + prev_layer_shape.str() + " to " + instructions[i]->input_shape.str() + " without transformation").c_str());
+				throw exception(("Layer tensor shape cannot change from " + prev_layer_shape.str() + " to " + instructions[i]->input_shape.str() + " without transformation").c_str());*/
 			instructions[i]->initialise(batch_size);
 			layer_shapes.push_back(instructions[i]->output_shape);
-			prev_layer_shape = instructions[i]->output_shape;
+			//prev_layer_shape = instructions[i]->output_shape;
 
-			if (prev_layer_shape.size() > largest_layer_size)
-				largest_layer_size = prev_layer_shape.size();
+			//if (prev_layer_shape.size() > largest_layer_size)
+			//	largest_layer_size = prev_layer_shape.size();
+			if (instructions[i]->input_shape.size() > largest_layer_size)
+				largest_layer_size = instructions[i]->input_shape.size();
 		}
 
-		output_shape = prev_layer_shape;
+		output_shape = instructions.back()->output_shape;
 
 		if (cost_func != nullptr)
 			cost_func->initialise(output_shape, batch_size, -1);

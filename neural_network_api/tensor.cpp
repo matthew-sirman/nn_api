@@ -59,8 +59,10 @@ tensor tensor::random(size_t size)
 tensor tensor::random(size_t size, float min, float max)
 {
 	if (!random_initialised) {
-		//get_prng(&prng, 0);
-		get_prng(&prng, time(NULL));
+		if (TRUE_RAND)
+			get_prng(&prng, time(NULL));
+		else
+			get_prng(&prng, 0);
 		random_initialised = true;
 	}
 
@@ -80,8 +82,10 @@ tensor tensor::random(vector<size_t> shape)
 tensor tensor::random(vector<size_t> shape, float min, float max)
 {
 	if (!random_initialised) {
-		//get_prng(&prng, 0);
-		get_prng(&prng, time(NULL));
+		if (TRUE_RAND)
+			get_prng(&prng, time(NULL));
+		else
+			get_prng(&prng, 0);
 		random_initialised = true;
 	}
 

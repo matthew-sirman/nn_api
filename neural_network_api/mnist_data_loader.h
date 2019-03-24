@@ -25,7 +25,7 @@ public:
 	void load_data_set(string file_name);
 	void load_data_set_labels(string file_name);
 
-	void close();
+	void close() override;
 
 	tensor * get_next_batch() override;
 	tensor * get_next_batch_labels() override;
@@ -37,8 +37,6 @@ private:
 
 	string file_path;
 	string d_file_name, l_file_name;
-
-	size_t n_classes;
 
 	bool one_hot = true;
 

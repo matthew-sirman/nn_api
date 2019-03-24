@@ -67,8 +67,10 @@ void add_matrices(float * d_input_p, float * d_out, float * d_bias_p, int size, 
 void multiply_matrices(float * d_A, float * d_B, float * d_partial_outputs, float * d_out, int A_rows, int A_cols, int B_rows, int B_cols);
 void multiply_staggered(float * d_input_p, float * d_out, float * d_partial_outputs, float * d_mul_mat, int rows, int cols, int stagger_size, int num);
 void apply_relu(float * d_input_p, float * d_output_p, int size, float alpha);
+void apply_tanh(float * d_input_p, float * d_output_p, int size);
 void apply_softmax(float * d_input_p, float * d_output_p, int input_size, int num, float beta);
 void relu_derivative(float * d_input_p, float * d_output_p, int size, float alpha);
+void tanh_derivative(float * d_input_p, float * d_output_p, int size);
 //void softmax_derivative(float * d_input_p, float * d_output_p, int size, float beta);
 
 void batch_norm(float * d_input_p, float * d_output_p, int size, int num);

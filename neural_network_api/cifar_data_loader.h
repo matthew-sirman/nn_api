@@ -30,13 +30,14 @@ enum NN_LIB_API cifar_dataset {
 	CIFAR_100_C
 };
 
-template <cifar_dataset cifar, size_t n_classes>
+template <cifar_dataset cifar, size_t CLASSES>
 class cifar_data_loader : public batch_iterator
 {
 public:
 	cifar_data_loader(string file_path, bool one_hot = true) {
 		this->file_path = file_path;
 		this->one_hot = one_hot;
+		this->n_classes = CLASSES;
 
 		switch (cifar) {
 		case CIFAR_10:
@@ -73,7 +74,7 @@ public:
 		}
 	}
 
-	void close() {
+	void close() override {
 		if (!initialised)
 			return;
 		free(data_buffer);
@@ -81,6 +82,9 @@ public:
 		//free(label_buffer);
 		free(onehot_labels);
 		free(index_labels);
+		data->uninitialise();
+		labels->uninitialise();
+		initialised = false;
 	}
 
 	void next_batch() override {
@@ -89,15 +93,17 @@ public:
 		data_stream.seekg(0, data_stream.end);
 		size_t total_file_length = data_stream.tellg();
 		size_t length = total_file_length - (d_s_index - file_len_pos);
-		data_stream.seekg(d_s_index);
+		data_stream.seekg(d_s_index - file_len_pos);
 
 		size_t batch_load_size = batch_size * (n_rows * n_cols * depth + label_depth);
 
 		size_t current_batch_size = batch_size;
 
 		if (length >= batch_load_size) {
-			if (length == batch_load_size)
+			if (length == batch_load_size) {
 				__file_index++;
+				file_len_pos += total_file_length;
+			}
 			length = batch_load_size;
 
 			//load entire batch as it is all located in this file.
@@ -115,7 +121,7 @@ public:
 				size_t next_len = next_data_stream.tellg();
 				next_data_stream.seekg(0, next_data_stream.beg);
 
-				file_len_pos += next_len;
+				file_len_pos += total_file_length;
 
 				if (next_len >= batch_load_size - length) {
 					next_data_stream.read(&data_buffer[length], batch_load_size - length);
@@ -130,6 +136,12 @@ public:
 		}
 
 		data->set_shape({ current_batch_size, n_rows, n_cols, depth });
+		if (one_hot) {
+			labels->set_shape({ current_batch_size, n_classes });
+		}
+		else {
+			labels->set_shape({ current_batch_size });
+		}
 
 		memset(onehot_labels, 0, sizeof(float) * batch_size * n_classes);
 		memset(index_labels, 0, sizeof(float) * batch_size);
@@ -190,6 +202,7 @@ public:
 
 	void reset_iterator() override {
 		d_s_index = 0;
+		file_len_pos = 0;
 		__file_index = 0;
 	}
 

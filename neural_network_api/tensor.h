@@ -13,6 +13,8 @@
 
 using namespace std;
 
+constexpr bool TRUE_RAND = false;
+
 class NN_LIB_API tensor
 {
 public:

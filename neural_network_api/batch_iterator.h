@@ -23,9 +23,13 @@ public:
 	size_t get_size() { return n_items; }
 	size_t get_batch_size() { return batch_size; }
 	virtual void initialise(size_t batch_size) = 0;
+	virtual void close() = 0;
+
+	size_t classes() { return n_classes; }
 protected:
 	bool initialised = false;
 	size_t batch_size;
 	size_t n_items = -1;
+	size_t n_classes;
 };
 

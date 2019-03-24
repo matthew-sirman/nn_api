@@ -24,15 +24,16 @@ namespace nn {
 	};
 
 	enum NN_LIB_API function_id {
-		ADD = 0x00,
-		MUL = 0x01,
-		RELU = 0x02,
-		L_RELU = 0x03,
-		BATCH_NORM = 0x04,
-		CONV_2D = 0x05,
-		POOL = 0x06,
-		RESHAPE = 0x07,
-		FLATTEN = 0x08
+		ADD,
+		MUL,
+		RELU,
+		L_RELU,
+		BATCH_NORM,
+		CONV_2D,
+		POOL,
+		RESHAPE,
+		FLATTEN,
+		TANH,
 	};
 
 	enum NN_LIB_API out_function_id {
@@ -352,6 +353,25 @@ namespace nn {
 		size_t get_serialise_size() override;
 		void serialise(char * stream_buffer, size_t offset) override;
 		void deserialise(char * stream_buffer, size_t offset) override;
+	};
+
+	class tanh_function : public instruction_function {
+	public:
+		tanh_function();
+		tanh_function(size_t input_size);
+		~tanh_function();
+
+		void run(float * input) override;
+		void run(float * input, int batch_size) override;
+		void run_derivative(float * input) override;
+
+		void back_propagate(float * current_pds, int batch_size) override;
+
+		void initialise() override;
+		void initialise(size_t batch_size) override;
+		void uninitialise() override;
+
+		void serialise(char * stream_buffer, size_t offset) override;
 	};
 
 	class batch_normalisation_function : public instruction_function {
