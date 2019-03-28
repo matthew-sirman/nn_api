@@ -276,7 +276,7 @@ __global__ void d_filter_convolve_2d(
 						out_m_id < output_shape.height &&
 						b_elem + batch < batch_size) {
 
-						int out_index = out_k_id * output_shape.width * output_shape.height +
+						int out_index =	out_k_id * output_shape.width * output_shape.height +
 							out_m_id * output_shape.width +
 							out_n_id;
 
@@ -457,8 +457,8 @@ __global__ void d_filter_outer_convolve_2d(
 					g_load_k_id < filter_shape.depth) {
 
 					int g_index = g_load_k_id * filter_shape.width * filter_shape.height +
-						g_load_m_id * filter_shape.width +
-						g_load_n_id;
+						(filter_shape.height - g_load_m_id) * filter_shape.width +
+						(filter_shape.width - g_load_n_id);
 
 					s_filter[s_index] = filter[g_index];
 				}
@@ -1104,7 +1104,7 @@ void filter_convolve_2d(
 	}
 }
 
-void pool_2d(
+void max_pool_2d(
 	float * d_input, 
 	int * d_mask, 
 	float * d_output, 
@@ -1310,7 +1310,7 @@ void filter_convolve_2d_derivative(
 	}*/
 }
 
-void pool_2d_derivative(
+void max_pool_2d_derivative(
 	float * d_input, 
 	int * d_mask, 
 	float * d_output, 

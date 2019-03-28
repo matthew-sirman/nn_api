@@ -1,10 +1,13 @@
 #pragma once
 
+/*
 #ifdef NEURALNETWORKAPI_EXPORTS
 #define NN_LIB_API __declspec(dllexport)
 #else
 #define NN_LIB_API __declspec(dllimport)
 #endif
+*/
+#define NN_LIB_API
 
 #include <conio.h>
 #include <algorithm>
@@ -58,7 +61,8 @@ void copy_into_device_array(float * input_data, float * d_data_p, int size, int 
 void copy_staggered_into_device_array(float * input_data, float * d_data_pointer, int in_dat_size, int out_dat_size, int num);
 
 void get_prng(curandGenerator_t * prng, int seed);
-void random_host_array(curandGenerator_t prng, float * array_p, float scale, float offset, int size, int seed);
+void random_host_array(curandGenerator_t prng, float * array_p, float scale, float offset, size_t size);
+void random_normal_array(curandGenerator_t prng, float * array_p, float mean, float stddev, size_t size);
 //void fill_array(float * array_p, float value, int size);
 void fill_device_array(float * d_array_p, float value, int size);
 
@@ -68,9 +72,11 @@ void multiply_matrices(float * d_A, float * d_B, float * d_partial_outputs, floa
 void multiply_staggered(float * d_input_p, float * d_out, float * d_partial_outputs, float * d_mul_mat, int rows, int cols, int stagger_size, int num);
 void apply_relu(float * d_input_p, float * d_output_p, int size, float alpha);
 void apply_tanh(float * d_input_p, float * d_output_p, int size);
+void apply_sigmoid(float * d_input_p, float * d_output_p, int size);
 void apply_softmax(float * d_input_p, float * d_output_p, int input_size, int num, float beta);
 void relu_derivative(float * d_input_p, float * d_output_p, int size, float alpha);
 void tanh_derivative(float * d_input_p, float * d_output_p, int size);
+void sigmoid_derivative(float * d_input_p, float * d_output_p, int size);
 //void softmax_derivative(float * d_input_p, float * d_output_p, int size, float beta);
 
 void batch_norm(float * d_input_p, float * d_output_p, int size, int num);

@@ -1,10 +1,13 @@
 #pragma once
 
+/*
 #ifdef NEURALNETWORKAPI_EXPORTS
 #define NN_LIB_API __declspec(dllexport)
 #else
 #define NN_LIB_API __declspec(dllimport)
 #endif
+*/
+#define NN_LIB_API
 
 #include "kernel.h"
 
@@ -83,8 +86,8 @@ template <int BLOCK_N, int BLOCK_M, int DEPTH>
 __device__ float calculate_conv2d_dot(volatile float * s_filter, volatile float * s_load_block, int start_n, int start_m);
 
 void filter_convolve_2d(float * d_input, float * d_filter, float * d_output, shape input_shape, shape output_shape, shape filter_shape, shape padding, size_t batch_size);
-void pool_2d(float * d_input, int * d_mask, float * d_output, shape input_shape, shape pool_size, shape stride, shape output_shape, size_t batch_size);
+void max_pool_2d(float * d_input, int * d_mask, float * d_output, shape input_shape, shape pool_size, shape stride, shape output_shape, size_t batch_size);
 
 void filter_outer_convolve_2d(float * d_input, float * d_filter, float * d_output, shape input_shape, shape output_shape, shape filter_shape, shape padding, size_t batch_size);
 void filter_convolve_2d_derivative(float * d_input, float * d_pds, float * d_output, shape input_shape, shape pd_shape, shape output_shape, shape padding, size_t batch_size);
-void pool_2d_derivative(float * d_input, int * d_mask, float * d_output, shape input_shape, shape output_shape, size_t batch_size);
+void max_pool_2d_derivative(float * d_input, int * d_mask, float * d_output, shape input_shape, shape output_shape, size_t batch_size);

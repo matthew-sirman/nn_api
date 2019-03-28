@@ -1,10 +1,13 @@
 #pragma once
 
+/*
 #ifdef NEURALNETWORKAPI_EXPORTS
 #define NN_LIB_API __declspec(dllexport)
 #else
 #define NN_LIB_API __declspec(dllimport)
 #endif
+*/
+#define NN_LIB_API
 
 #include <curand_kernel.h>
 
@@ -13,7 +16,7 @@
 
 using namespace std;
 
-constexpr bool TRUE_RAND = false;
+constexpr bool TRUE_RAND = true;
 
 class NN_LIB_API tensor
 {
@@ -29,6 +32,9 @@ public:
 	static tensor random(size_t size, float min, float max);
 	static tensor random(vector<size_t> shape);
 	static tensor random(vector<size_t> shape, float min, float max);
+	
+	static tensor random_normal(size_t size, float mean = 0.0f, float stddev = 1.0f);
+	static tensor random_normal(vector<size_t> shape, float mean = 0.0f, float stddev = 1.0f);
 
 	static tensor zeros(size_t size);
 	static tensor value(size_t size, float value);

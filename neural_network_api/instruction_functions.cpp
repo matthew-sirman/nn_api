@@ -173,8 +173,8 @@ namespace nn {
 	add_function::add_function(tensor biases)
 		: trainable_function(biases)
 	{
-		this->input_shape = { biases.get_shape()[0], 1 };
-		this->output_shape = { biases.get_shape()[0], 1 };
+		this->input_shape = shape(biases.get_size());
+		this->output_shape = shape(biases.get_size());
 	}
 
 	add_function::~add_function()
@@ -189,7 +189,7 @@ namespace nn {
 
 	void add_function::run(float * input, int batch_size)
 	{
-		add_matrices(input, d_out_vector, train_tensor.get_dev_pointer(), input_shape.width, batch_size);
+		add_matrices(input, d_out_vector, train_tensor.get_dev_pointer(), input_shape.size(), batch_size);
 	}
 
 	void add_function::run_derivative(float* input)
@@ -216,18 +216,18 @@ namespace nn {
 	{
 		trainable_function::initialise(batch_size);
 
-		allocate_device_pointer(&d_der_vector, batch_size * input_shape.width);
-		allocate_device_pointer(&d_pder_vector, batch_size * input_shape.width);
-		allocate_device_pointer(&d_derivatives, batch_size * input_shape.width);
-		allocate_device_pointer(&d_momentum, input_shape.width);
-		allocate_device_pointer(&d_velocity, input_shape.width);
-		allocate_device_pointer(&d_avg_derivatives, input_shape.width);
+		allocate_device_pointer(&d_der_vector, batch_size * input_shape.size());
+		allocate_device_pointer(&d_pder_vector, batch_size * input_shape.size());
+		allocate_device_pointer(&d_derivatives, batch_size * input_shape.size());
+		allocate_device_pointer(&d_momentum, input_shape.size());
+		allocate_device_pointer(&d_velocity, input_shape.size());
+		allocate_device_pointer(&d_avg_derivatives, input_shape.size());
 
-		fill_device_array(d_momentum, 0.0, input_shape.width);
-		fill_device_array(d_velocity, 0.0, input_shape.width);
+		fill_device_array(d_momentum, 0.0, input_shape.size());
+		fill_device_array(d_velocity, 0.0, input_shape.size());
 
-		fill_device_array(d_der_vector, 1, batch_size * input_shape.width);
-		fill_device_array(d_pder_vector, 1, batch_size * input_shape.width);
+		fill_device_array(d_der_vector, 1, batch_size * input_shape.size());
+		fill_device_array(d_pder_vector, 1, batch_size * input_shape.size());
 	}
 
 	void add_function::uninitialise() {
@@ -241,9 +241,9 @@ namespace nn {
 
 	void add_function::avg_partial_derivatives(float * current_pds, int num)
 	{
-		hadamard_product(current_pds, d_pder_vector, d_derivatives, input_shape.width * num);
+		hadamard_product(current_pds, d_pder_vector, d_derivatives, input_shape.size() * num);
 
-		average_vector(d_derivatives, derivatives.get_dev_pointer(), input_shape.width, num, num);
+		average_vector(d_derivatives, derivatives.get_dev_pointer(), input_shape.size(), num, num);
 
 		//add_matrices(d_avg_derivatives, derivatives.get_dev_pointer(), derivatives.get_dev_pointer(), input_shape.width, 1);
 
@@ -265,31 +265,31 @@ namespace nn {
 		subtract_partial_derivatives(train_tensor.get_dev_pointer(), derivatives.get_dev_pointer(), input_shape.width, learning_rate);
 	}*/
 
-	mul_function::mul_function(size_t weight_rows, size_t weight_cols)
+	matmul_function::matmul_function(size_t weight_rows, size_t weight_cols)
 		: trainable_function(tensor({ weight_rows, weight_cols }))
 	{
 		this->input_shape = { weight_cols, 1 };
 		this->output_shape = { weight_rows, 1 };
 	}
 
-	mul_function::mul_function(tensor weights)
+	matmul_function::matmul_function(tensor weights)
 		: trainable_function(tensor(weights))
 	{
 		this->input_shape = { weights.get_shape()[1], 1 };
 		this->output_shape = { weights.get_shape()[0], 1 };
 	}
 
-	mul_function::~mul_function()
+	matmul_function::~matmul_function()
 	{
 		instruction_function::~instruction_function();
 	}
 
-	void mul_function::run(float* input)
+	void matmul_function::run(float* input)
 	{
 		run(input, 1);
 	}
 
-	void mul_function::run(float * input, int batch_size)
+	void matmul_function::run(float * input, int batch_size)
 	{
 		//multiply_matrices(input, d_out_vector, d_partial_mul_outputs, train_tensor.get_dev_pointer(), output_size, input_size, batch_size);
 		//multiply_matrices(train_tensor.get_dev_pointer(), input, d_partial_mul_outputs, d_out_vector, output_size, input_size, input_size, batch_size);
@@ -311,18 +311,18 @@ namespace nn {
 			printf("mul[%d] = %f\n", i, test[i]);*/
 	}
 
-	void mul_function::run_derivative(float* input)
+	void matmul_function::run_derivative(float* input)
 	{
 
 	}
 
-	void mul_function::run_train_derivative(float * input, int batch_size)
+	void matmul_function::run_train_derivative(float * input, int batch_size)
 	{
 		copy_into_device_array(input, d_pder_vector, input_shape.width * batch_size, 0);
 		//transpose(d_pder_vector, d_pder_vector, batch_size, input_size);
 	}
 
-	void mul_function::back_propagate(float * current_pds, int num)
+	void matmul_function::back_propagate(float * current_pds, int num)
 	{
 
 		//Try creating a constructor
@@ -359,12 +359,12 @@ namespace nn {
 		printf("\n");*/
 	}
 
-	void mul_function::initialise()
+	void matmul_function::initialise()
 	{
 		initialise(1);
 	}
 
-	void mul_function::initialise(size_t batch_size)
+	void matmul_function::initialise(size_t batch_size)
 	{
 		trainable_function::initialise(batch_size);
 		//d_transpose_matrix = train_tensor.get_transpose().get_dev_pointer();
@@ -386,7 +386,7 @@ namespace nn {
 		create_device_matrix(d_out_vec, batch_size, output_shape.width, d_out_vector);
 	}
 
-	void mul_function::uninitialise()
+	void matmul_function::uninitialise()
 	{
 		trainable_function::uninitialise();
 		//deallocate_device_pointer(d_partial_mul_outputs);
@@ -400,7 +400,7 @@ namespace nn {
 		//cuda_safe_call(cudaFree(d_out_vec));
 	}
 
-	void mul_function::avg_partial_derivatives(float * current_pds, int num)
+	void matmul_function::avg_partial_derivatives(float * current_pds, int num)
 	{
 		//allocate another device memory pointer, batch_size * input_size.
 		//allocate partial outputs pointer (or maybe just reuse the other? Depends if currently required at this point)
@@ -445,7 +445,7 @@ namespace nn {
 			printf("Test[%d] = %f\n", i, test[i]);*/
 	}
 	
-	void mul_function::serialise(char * stream_buffer, size_t offset)
+	void matmul_function::serialise(char * stream_buffer, size_t offset)
 	{
 		__serialise(stream_buffer, offset, function_id::MUL);
 	}
@@ -653,6 +653,63 @@ namespace nn {
 		__serialise(stream_buffer, offset, function_id::TANH);
 	}
 
+	sigmoid_function::sigmoid_function()
+		: sigmoid_function(0)
+	{
+	}
+
+	sigmoid_function::sigmoid_function(size_t input_size)
+	{
+		this->input_shape = shape(input_size);
+		this->output_shape = shape(input_size);
+	}
+
+	sigmoid_function::~sigmoid_function()
+	{
+	}
+
+	void sigmoid_function::run(float * input)
+	{
+		run(input, 1);
+	}
+
+	void sigmoid_function::run(float * input, int batch_size)
+	{
+		apply_sigmoid(input, d_out_vector, input_shape.size() * batch_size);
+	}
+
+	void sigmoid_function::run_derivative(float * input)
+	{
+		sigmoid_derivative(input, d_der_vector, input_shape.size() * batch_size);
+	}
+
+	void sigmoid_function::back_propagate(float * current_pds, int batch_size)
+	{
+		hadamard_product(current_pds, get_derivative_vector(), current_pds, input_shape.size() * batch_size);
+	}
+
+	void sigmoid_function::initialise()
+	{
+		initialise(1);
+	}
+
+	void sigmoid_function::initialise(size_t batch_size)
+	{
+		instruction_function::initialise(batch_size);
+		allocate_device_pointer(&d_der_vector, input_shape.size() * batch_size);
+	}
+
+	void sigmoid_function::uninitialise()
+	{
+		instruction_function::uninitialise();
+		deallocate_device_pointer(d_der_vector);
+	}
+
+	void sigmoid_function::serialise(char * stream_buffer, size_t offset)
+	{
+		__serialise(stream_buffer, offset, function_id::SIGMOID);
+	}
+
 	softmax::softmax()
 		: softmax(0)
 	{
@@ -790,6 +847,13 @@ namespace nn {
 
 	void conv2d_function::run(float * input, int batch_size)
 	{
+		/*float * TEST = (float *)malloc(sizeof(float) * 10);
+		cudaMemcpy(TEST, get_filter().get_dev_pointer(), sizeof(float) * 10, cudaMemcpyDeviceToHost);
+
+		for (int i = 0; i < 10; i++)
+			printf("%d -> %f\n", i, TEST[i]);*/
+		cuda_safe_call(cudaMemset(d_out_vector, 0, sizeof(float) * output_shape.size() * batch_size));
+
 		filter_convolve_2d(
 			input,
 			get_filter().get_dev_pointer(),
@@ -814,6 +878,7 @@ namespace nn {
 
 	void conv2d_function::back_propagate(float * current_pds, int num)
 	{
+		cuda_safe_call(cudaMemset(d_tmp_backprop_output, 0, sizeof(float) * input_shape.size() * num));
 		filter_outer_convolve_2d(current_pds, get_filter().get_dev_pointer(), d_tmp_backprop_output, output_shape, input_shape, filter_shape, padding, num);
 		cuda_safe_call(cudaMemcpy(current_pds, d_tmp_backprop_output, sizeof(float) * input_shape.size() * num, cudaMemcpyDeviceToDevice));
 	}
@@ -862,6 +927,8 @@ namespace nn {
 			num
 		);*/
 
+		cuda_safe_call(cudaMemset(d_derivatives, 0, sizeof(float) * filter_shape.size() * output_shape.depth));
+
 		filter_convolve_2d_derivative(
 			d_pder_vector,
 			current_pds,
@@ -872,6 +939,13 @@ namespace nn {
 			padding,
 			num
 		);
+
+		/*float * test = (float *)malloc(sizeof(float) * 5*5*3);
+		cudaMemcpy(test, &d_derivatives[5*5*3*0], sizeof(float) * 5*5*3, cudaMemcpyDeviceToHost);
+
+		for (int k = 0; k < 5*5*3; k++)
+			printf("test[%d] = %e\n", k, test[k]);
+		printf("\n");/**/
 
 		//average_vector(d_derivatives, derivatives.get_dev_pointer(), filter_shape.size() * output_shape.depth, num, num);
 		scalar_matrix_multiply_f(d_derivatives, derivatives.get_dev_pointer(), 1.0 / num, filter_shape.size() * output_shape.depth);
@@ -908,24 +982,24 @@ namespace nn {
 		this->output_shape.height = input_shape.height - filter_shape.height + 1 + padding.height * 2;
 	}
 
-	pool_function::pool_function(shape pool_size, shape stride)
+	max_pool_function::max_pool_function(shape pool_size, shape stride)
 	{
 		this->pool_size = pool_size;
 		this->stride = stride;
 	}
 
-	pool_function::~pool_function()
+	max_pool_function::~max_pool_function()
 	{
 	}
 
-	void pool_function::run(float * input)
+	void max_pool_function::run(float * input)
 	{
 		run(input, 1);
 	}
 
-	void pool_function::run(float * input, int batch_size)
+	void max_pool_function::run(float * input, int batch_size)
 	{
-		pool_2d(input, d_mask, d_out_vector, input_shape, pool_size, stride, output_shape, batch_size);
+		max_pool_2d(input, d_mask, d_out_vector, input_shape, pool_size, stride, output_shape, batch_size);
 
 		/*float * test = (float *)malloc(sizeof(float) * 144 * 4 * 2);
 		cudaMemcpy(test, d_out_vector, sizeof(float) * 144 * 4 * 2, cudaMemcpyDeviceToHost);
@@ -936,16 +1010,16 @@ namespace nn {
 		printf("\n");*/
 	}
 
-	void pool_function::run_derivative(float * input)
+	void max_pool_function::run_derivative(float * input)
 	{
 
 	}
 
-	void pool_function::back_propagate(float * current_pds, int num)
+	void max_pool_function::back_propagate(float * current_pds, int num)
 	{
 		cudaMemcpy(test, d_mask, sizeof(int) * 10, cudaMemcpyDeviceToHost);
 		fill_device_array(d_der_vector, 0, input_shape.size() * num);
-		pool_2d_derivative(current_pds, d_mask, d_der_vector, output_shape, input_shape, num);
+		max_pool_2d_derivative(current_pds, d_mask, d_der_vector, output_shape, input_shape, num);
 		cuda_safe_call(cudaMemcpy(current_pds, d_der_vector, sizeof(float) * input_shape.size() * num, cudaMemcpyDeviceToDevice));
 		/*if (cudaMemcpy(current_pds, d_der_vector, sizeof(float) * input_shape.size() * num, cudaMemcpyDeviceToDevice) != cudaSuccess) {
 
@@ -959,12 +1033,12 @@ namespace nn {
 		}*/
 	}
 
-	void pool_function::initialise()
+	void max_pool_function::initialise()
 	{
 		initialise(1);
 	}
 
-	void pool_function::initialise(size_t batch_size)
+	void max_pool_function::initialise(size_t batch_size)
 	{
 		instruction_function::initialise(batch_size);
 		cuda_safe_call(cudaMallocManaged(&d_mask, sizeof(int) * input_shape.size() * batch_size));
@@ -972,7 +1046,7 @@ namespace nn {
 		test = (int *)malloc(sizeof(int) * 10);
 	}
 
-	void pool_function::uninitialise()
+	void max_pool_function::uninitialise()
 	{
 		instruction_function::uninitialise();
 		cuda_safe_call(cudaFree(d_mask));
@@ -980,7 +1054,7 @@ namespace nn {
 		free(test);
 	}
 
-	void pool_function::set_input_shape(shape input_shape)
+	void max_pool_function::set_input_shape(shape input_shape)
 	{
 		if ((input_shape.width - pool_size.width) % stride.width == 0 &&
 			(input_shape.height - pool_size.height) % stride.height == 0 &&
@@ -997,12 +1071,12 @@ namespace nn {
 		}
 	}
 
-	size_t pool_function::get_serialise_size()
+	size_t max_pool_function::get_serialise_size()
 	{
 		return instruction_function::get_serialise_size() + sizeof(shape) * 2;
 	}
 
-	void pool_function::serialise(char * stream_buffer, size_t offset)
+	void max_pool_function::serialise(char * stream_buffer, size_t offset)
 	{
 		__serialise(stream_buffer, offset, function_id::POOL);
 		size_t new_offset = instruction_function::get_serialise_size() + offset;
@@ -1010,7 +1084,7 @@ namespace nn {
 		memcpy(&stream_buffer[new_offset + sizeof(shape)], stride.serialise(), sizeof(shape));
 	}
 
-	void pool_function::deserialise(char * stream_buffer, size_t offset)
+	void max_pool_function::deserialise(char * stream_buffer, size_t offset)
 	{
 		instruction_function::deserialise(stream_buffer, offset);
 		size_t new_offset = instruction_function::get_serialise_size() + offset;

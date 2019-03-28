@@ -32,14 +32,14 @@ namespace nn {
 		train_funcs.push_back(f);
 	}
 
-	void network_model::mul(tensor weights)
+	void network_model::matmul(tensor weights)
 	{
 		if (!__ent_spec)
 			throw exception("Entry size not specified");
 
 		if (weights.get_dimensions() != 2)
 			throw exception("Weight tensor must be two dimensional");
-		mul_function * f = new mul_function(weights);
+		matmul_function * f = new matmul_function(weights);
 		instructions.push_back(f);
 		train_funcs.push_back(f);
 		this->init_layer_shape = shape(weights.get_shape()[0]);
@@ -57,9 +57,11 @@ namespace nn {
 		if (!__ent_spec)
 			throw exception("Entry size not specified");
 
-		tensor weights = tensor::random({ units, init_layer_shape.width }, -0.1, 0.1);
-		tensor biases = tensor::random(units, -0.1, 0.1);
-		mul(weights);
+		//tensor weights = tensor::random({ units, init_layer_shape.width }, -0.1, 0.1);
+		//tensor biases = tensor::random(units, -0.1, 0.1);
+		tensor weights = tensor::random_normal({ units, init_layer_shape.width }, 0, 0.1);
+		tensor biases = tensor::random_normal(units, 0, 0.1);
+		matmul(weights);
 		add(biases);
 		init_layer_shape = shape(units);
 	}
@@ -69,30 +71,57 @@ namespace nn {
 		if (!__ent_spec)
 			throw exception("Entry size not specified");
 
-		tensor filter = tensor::random({ filter_shape.width, filter_shape.height, filter_shape.depth, n_filters }, -0.1, 0.1);
-		conv2d(filter, padding);
+		//tensor filter = tensor::random({ filter_shape.width, filter_shape.height, filter_shape.depth, n_filters }, -0.1, 0.1);
+		tensor filter = tensor::random_normal({ filter_shape.width, filter_shape.height, filter_shape.depth, n_filters }, 0, 0.01);
+
+		/*tensor biases = tensor::random({
+			init_layer_shape.width - filter_shape.width + 1,
+			init_layer_shape.width - filter_shape.height + 1,
+			n_filters
+			},
+			-0.1, 0.1
+		);*/
+		tensor biases = tensor::random_normal({
+			init_layer_shape.width - filter_shape.width + 1,
+			init_layer_shape.width - filter_shape.height + 1,
+			n_filters
+			},
+			0, 0.1
+		);
+
+		conv2d(filter, biases, padding);
 	}
 
-	void network_model::conv2d(tensor filter, shape padding)
+	void network_model::conv2d(tensor filter, tensor biases, shape padding)
 	{
 		if (!__ent_spec)
 			throw exception("Entry size not specified");
 
 		if (filter.get_dimensions() != 4)
 			throw exception("Conv2d filter must be four dimensional (width, height, depth, filters)");
+
+		if (biases.get_dimensions() != 3)
+			throw exception("Conv2d biases must be three dimensional (width, height, depth)");
+
 		conv2d_function * f = new conv2d_function(filter, padding);
 		instructions.push_back(f);
 		train_funcs.push_back(f);
 		f->set_input_shape(init_layer_shape);
+
+		add_function * a_f = new add_function(biases);
+		instructions.push_back(a_f);
+		train_funcs.push_back(a_f);
+		a_f->set_input_shape(f->output_shape);
+
 		init_layer_shape = f->output_shape;
 	}
 
-	void network_model::pool(shape pool_size, shape stride)
+	void network_model::max_pool(shape pool_size, shape stride)
 	{
 		if (!__ent_spec)
 			throw exception("Entry size not specified");
 
-		pool_function * f = new pool_function(pool_size, stride);
+		max_pool_function * f = new max_pool_function(pool_size, stride);
 		instructions.push_back(f);
 		f->set_input_shape(init_layer_shape);
 		init_layer_shape = f->output_shape;
@@ -141,6 +170,14 @@ namespace nn {
 		instructions.push_back(new tanh_function(init_layer_shape.size()));
 	}
 
+	void network_model::sigmoid()
+	{
+		if (!__ent_spec)
+			throw exception("Entry size not specified");
+
+		instructions.push_back(new sigmoid_function(init_layer_shape.size()));
+	}
+
 	/*void network_model::softmax()
 	{
 		instructions.push_back(new softmax_function());
@@ -180,7 +217,7 @@ namespace nn {
 
 		//shape prev_layer_shape = instructions[0]->input_shape;
 
-		largest_layer_size = -1; // prev_layer_shape.size();
+		largest_layer_size = 0; // prev_layer_shape.size();
 
 		for (int i = 0; i < instructions.size(); i++) {
 			/*if (instructions[i]->input_shape.size() == 0 ||
@@ -612,7 +649,7 @@ namespace nn {
 				f->deserialise(data_buff, 0);
 				break;
 			case function_id::MUL:
-				f = new mul_function();
+				f = new matmul_function();
 				f->deserialise(data_buff, 0);
 				break;
 			case function_id::RELU:
@@ -623,6 +660,14 @@ namespace nn {
 				f = new leaky_relu_function();
 				f->deserialise(data_buff, 0);
 				break;
+			case function_id::TANH:
+				f = new tanh_function();
+				f->deserialise(data_buff, 0);
+				break;
+			case function_id::SIGMOID:
+				f = new sigmoid_function();
+				f->deserialise(data_buff, 0);
+				break;
 			case function_id::BATCH_NORM:
 				break;
 			case function_id::CONV_2D:
@@ -630,7 +675,7 @@ namespace nn {
 				f->deserialise(data_buff, 0);
 				break;
 			case function_id::POOL:
-				f = new pool_function();
+				f = new max_pool_function();
 				f->deserialise(data_buff, 0);
 				break;
 			case function_id::RESHAPE:
@@ -664,7 +709,9 @@ namespace nn {
 			instruction_function * i_func = instructions[i];
 			float * d_out_layer = i_func->get_out_vector();
 
-			fill_device_array(d_out_layer, 0, batch_size * i_func->output_shape.size());
+			//fill_device_array(d_out_layer, 0, batch_size * i_func->output_shape.size());
+
+			cuda_safe_call(cudaMemset(d_out_layer, 0, sizeof(float) * i_func->output_shape.size()));
 
 			i_func->run(d_in_layer, current_batch_size);
 
@@ -694,17 +741,57 @@ namespace nn {
 				printf("total: %.32g\n", total);
 				printf("\n");*/
 
+				/*float * TEST = (float *)malloc(sizeof(float) * 10);
+				cudaMemcpy(TEST, &t_func->get_train_vector()[5*5*3*1], sizeof(float) * 10, cudaMemcpyDeviceToHost);
+
+				for (int i = 0; i < 10; i++)
+					printf("Test[%d] = %f\n", i, TEST[i]);
+				printf("\n");/**/
+
+				/*if (i == 0) {
+					float * T = (float *)malloc(sizeof(float) * 32*6);
+					cudaMemcpy(T, d_out_layer, sizeof(float) * 32 * 6, cudaMemcpyDeviceToHost);
+
+					for (int k = 0; k < 32 * 6; k++) {
+						printf("In[%d] = %f\n", k, T[k]);
+					}
+				}
+
+
+				if (i != 0) {
+					float * TEST = (float *)malloc(sizeof(float) * 6272);
+					cudaMemcpy(TEST, d_in_layer, sizeof(float) * 6272, cudaMemcpyDeviceToHost);
+					float * TEST1 = (float *)malloc(sizeof(float) * 6272);
+					cudaMemcpy(TEST1, t_func->get_train_vector(), sizeof(float) * 6272, cudaMemcpyDeviceToHost);
+
+					float ttl = 0;
+
+					for (int k = 0; k < 6272; k++) {
+						printf("In[%d] = %e\n", k, TEST[k]);// *TEST1[i]);
+						ttl += TEST[k] * TEST1[k];
+					}
+					printf("Total %f\n", ttl);
+					printf("\n");
+				}*/
+
 			}
+
+			/*float * test = (float *)malloc(sizeof(float) * 28);
+			cudaMemcpy(test, &d_out_layer[0], sizeof(float) * 28, cudaMemcpyDeviceToHost);
+			for (int k = 0; k < 28; k++) {
+				printf("test[%d] = %e\n", k, test[k]);
+			}
+			printf("\n");/**/
 
 			d_in_layer = d_out_layer;
 
 			//last_size = instructions[i]->output_size;
 		}
 		
-		/*float * test = (float *)malloc(sizeof(float) * 30);
-		cudaMemcpy(test, instructions.back()->get_out_vector(), sizeof(float) * 30, cudaMemcpyDeviceToHost);
+		/*float * test = (float *)malloc(sizeof(float) * 40);
+		cudaMemcpy(test, instructions.back()->get_out_vector(), sizeof(float) * 40, cudaMemcpyDeviceToHost);
 
-		for (int k = 0; k < 30; k++)
+		for (int k = 0; k < 40; k++)
 			printf("test[%d] = %e\n", k, test[k]);
 		printf("\n");/**/
 
@@ -725,13 +812,13 @@ namespace nn {
 		copy_into_device_array(cost_func->get_derivative_vector(), d_current_layer_cr_derivative, cost_func->get_size() * current_batch_size, 0);
 		
 		for (int i = instructions.size() - 1; i >= 0; i--) {
+			
+			/*float * test = (float *)malloc(sizeof(float) * 40);
+			cudaMemcpy(test, d_current_layer_cr_derivative, sizeof(float) * 40, cudaMemcpyDeviceToHost);
 
-			/*float * test = (float *)malloc(sizeof(float) * 10);
-			cudaMemcpy(test, d_current_layer_cr_derivative, sizeof(float) * 10, cudaMemcpyDeviceToHost);
-
-			for (int i = 0; i < 10; i++)
+			for (int i = 0; i < 40; i++)
 				printf("test[%d] = %e\n", i, test[i]);
-			printf("\n");*/
+			printf("\n");/**/
 
 			instruction_function * i_func = instructions[i];
 

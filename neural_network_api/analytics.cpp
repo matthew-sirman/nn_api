@@ -119,7 +119,7 @@ void analytics::on_step_end(float avg_loss)
 
 	step_tmr.stop();
 	if (v == HIGH) {
-		printf("step: %d - time: %fms - loss: %e\n", cur_step, step_tmr.elapsed(), avg_loss);
+		printf("step: %5d - time: %1.4fms - loss: %.5e - acc: %.4f\n", cur_step, step_tmr.elapsed(), avg_loss, exp(-avg_loss));
 		max_avg_cost = max(avg_loss, max_avg_cost);
 		if (plotting) {
 			plot_data.emplace_back(cur_step, avg_loss);
@@ -129,7 +129,7 @@ void analytics::on_step_end(float avg_loss)
 			//*gp << "plot [" << to_string(start) << ":" << to_string(start + GRAPH_PLOT_STEP_COUNT) << "] [0:" << to_string(max_avg_cost) << "] '-' with lines title 'Cost'\n";
 			//gp->send1d(data);
 			//gp->flush();
-			fprintf(plot_str, "plot [%d:%d] [0:%f] '-' with lines title 'Cost'\n", start, start + GRAPH_PLOT_STEP_COUNT, max_avg_cost);
+			fprintf(plot_str, "plot [%d:%d] [0:*] '-' with lines title 'Cost'\n", start, start + GRAPH_PLOT_STEP_COUNT);
 			for (int plt = start; plt < start + GRAPH_PLOT_STEP_COUNT; plt++) {
 				if (plt < plot_data.size()) {
 					fprintf(plot_str, "%f %f\n", plot_data[plt].first, plot_data[plt].second);

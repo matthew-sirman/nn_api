@@ -1,10 +1,13 @@
 #pragma once
 
+/*
 #ifdef NEURALNETWORKAPI_EXPORTS
 #define NN_LIB_API __declspec(dllexport)
 #else
 #define NN_LIB_API __declspec(dllimport)
 #endif
+*/
+#define NN_LIB_API
 
 #include <stdexcept>
 #include <vector>
@@ -35,17 +38,18 @@ namespace nn {
 
 		void entry(shape entry_shape);
 		void add(tensor biases);
-		void mul(tensor weights);
+		void matmul(tensor weights);
 		//void dense(size_t in_size, size_t out_size);
 		void dense(size_t units);
 		void conv2d(shape filter_shape, size_t n_filters, shape padding = shape(0, 0));
-		void conv2d(tensor filter, shape padding = shape(0, 0));
-		void pool(shape pool_size, shape stride);
+		void conv2d(tensor filter, tensor biases, shape padding = shape(0, 0));
+		void max_pool(shape pool_size, shape stride);
 		void flatten();
 		void reshape(shape output_shape);
 		void relu();
 		void leaky_relu(float alpha);
 		void tanh();
+		void sigmoid();
 		/*void softmax();
 		void softmax(float beta);*/
 

@@ -1,10 +1,13 @@
 #pragma once
 
+/*
 #ifdef NEURALNETWORKAPI_EXPORTS
 #define NN_LIB_API __declspec(dllexport)
 #else
 #define NN_LIB_API __declspec(dllimport)
 #endif
+*/
+#define NN_LIB_API
 
 #include <stdexcept>
 #include <string>
@@ -34,6 +37,7 @@ namespace nn {
 		RESHAPE,
 		FLATTEN,
 		TANH,
+		SIGMOID
 	};
 
 	enum NN_LIB_API out_function_id {
@@ -181,12 +185,12 @@ namespace nn {
 		//void train_function(float learning_rate, float momentum) override;
 	};
 
-	class mul_function : public trainable_function {
+	class matmul_function : public trainable_function {
 	public:
-		mul_function() {};
-		mul_function(size_t weight_rows, size_t weight_cols);
-		mul_function(tensor weights);
-		~mul_function();
+		matmul_function() {};
+		matmul_function(size_t weight_rows, size_t weight_cols);
+		matmul_function(tensor weights);
+		~matmul_function();
 
 		void run(float* input) override;
 		void run(float* input, int batch_size) override;
@@ -251,12 +255,12 @@ namespace nn {
 		float * d_tmp_backprop_output;
 	};
 
-	class pool_function : public instruction_function
+	class max_pool_function : public instruction_function
 	{
 	public:
-		pool_function() {};
-		pool_function(shape pool_size, shape stride);
-		~pool_function();
+		max_pool_function() {};
+		max_pool_function(shape pool_size, shape stride);
+		~max_pool_function();
 
 		void run(float* input) override;
 		void run(float* input, int batch_size) override;
@@ -290,8 +294,8 @@ namespace nn {
 		~reshape_function() {};
 
 		inline void run(float* input) override { run(input, 1); }
-		inline void run(float* input, int batch_size) override { 
-			cuda_safe_call(cudaMemcpy(d_out_vector, input, sizeof(float) * input_shape.size() * batch_size, cudaMemcpyDeviceToDevice)); 
+		inline void run(float* input, int batch_size) override {
+			cuda_safe_call(cudaMemcpy(d_out_vector, input, sizeof(float) * input_shape.size() * batch_size, cudaMemcpyDeviceToDevice));
 		}
 		inline void run_derivative(float * input) override {};
 		inline void back_propagate(float * current_pds, int num) override {};
@@ -360,6 +364,25 @@ namespace nn {
 		tanh_function();
 		tanh_function(size_t input_size);
 		~tanh_function();
+
+		void run(float * input) override;
+		void run(float * input, int batch_size) override;
+		void run_derivative(float * input) override;
+
+		void back_propagate(float * current_pds, int batch_size) override;
+
+		void initialise() override;
+		void initialise(size_t batch_size) override;
+		void uninitialise() override;
+
+		void serialise(char * stream_buffer, size_t offset) override;
+	};
+
+	class sigmoid_function : public instruction_function {
+	public:
+		sigmoid_function();
+		sigmoid_function(size_t input_size);
+		~sigmoid_function();
 
 		void run(float * input) override;
 		void run(float * input, int batch_size) override;

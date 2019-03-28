@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <fstream>
 #include "network_model.h"
+#include "mnist_data_loader.h"
 #include "cifar_data_loader.h"
 #include <opencv2\opencv.hpp>
 #include <boost/lexical_cast.hpp>
@@ -16,83 +17,24 @@ using namespace std;
 
 int main() {
 
-	/*int b_sz = 4;
-
-	float * in = (float *)malloc(sizeof(float) * 28 * 28 * 8 * b_sz);
-	float * out = (float *)malloc(sizeof(float) * 32 * 32 * 3 * b_sz);
-	float * fltr = (float *)malloc(sizeof(float) * 5 * 5 * 3 * 8);
-
-	float * d_in;
-	float * d_out;
-	float * d_fltr;
-
-	cudaMallocManaged(&d_in, sizeof(float) * 28 * 28 * 8 * b_sz);
-	cudaMallocManaged(&d_out, sizeof(float) * 32 * 32 * 3 * b_sz);
-	cudaMallocManaged(&d_fltr, sizeof(float) * 5 * 5 * 3 * 8);
-
-	std::fill(&in[28 * 28 * 0], &in[28 * 28 * 8 * 2], 0.5);
-	std::fill(&in[28 * 28 * 8 * 2], &in[28 * 28 * 8 * b_sz], 0.6);
-	std::fill(&out[32 * 32 * 0], &out[32 * 32 * 3 * b_sz], 0.5);
-
-	cudaMemcpy(d_in, in, sizeof(float) * 28 * 28 * 8 * b_sz, cudaMemcpyHostToDevice);
-	cudaMemcpy(d_out, out, sizeof(float) * 32 * 32 * 3 * b_sz, cudaMemcpyHostToDevice);
-
-	filter_convolve_2d_derivative(
-		d_out,
-		d_in,
-		d_fltr,
-		shape(32, 32, 3),
-		shape(28, 28, 8),
-		shape(5, 5, 3),
-		shape(0, 0),
-		b_sz
-	);
-
-	cudaMemcpy(fltr, d_fltr, sizeof(float) * 5 * 5 * 3 * 8, cudaMemcpyDeviceToHost);
-
-	for (int f = 0; f < 8; f++) {
-		printf("Filter %d:\n\n", f);
-		for (int k = 0; k < 3; k++) {
-			printf("Layer %d:\n", k);
-			for (int m = 0; m < 5; m++) {
-				for (int n = 0; n < 5; n++) {
-					printf("%.2f ", fltr[f * 5 * 5 * 3 + k * 5 * 5 + m * 5 + n]);
-				}
-				printf("\n");
-			}
-			printf("\n");
-		}
-	}
-
-	return 0;*/
-
 	network_model model;
 	model.entry(shape(32, 32, 3));
-	//tensor filter = tensor::random({ 5, 5, 3, 8 }, -0.1, 0.1);
-	model.conv2d(shape(5, 5, 3), 8);
 
-	//float * fltr = (float *)malloc(sizeof(float) * 5 * 5 * 3 * 8);
-	//cudaMemcpy(fltr, filter.get_dev_pointer(), sizeof(float) * 5 * 5 * 3 * 8, cudaMemcpyDeviceToHost);
-	//"D:\Users\Matthew\Neural Networks\TEST_params"
+	model.conv2d(shape(5, 5, 3), 32, shape(2, 2));
+	model.relu();
+	model.max_pool(shape(2, 2), shape(2, 2));
 
-	/*std::ofstream out_str = std::ofstream("D:/Users/Matthew/Neural Networks/TEST_params/filter.txt");
+	model.conv2d(shape(5, 5, 32), 32, shape(2, 2));
+	model.relu();
+	model.max_pool(shape(2, 2), shape(2, 2));
 
-	for (int f = 0; f < 8; f++) {
-		for (int k = 0; k < 3; k++) {
-			for (int m = 0; m < 5; m++) {
-				for (int n = 0; n < 5; n++) {
-					float f_val = filter.get_data()[f * 5 * 5 * 3 + k * 5 * 5 + m * 5 + n];
-					string o_string = boost::lexical_cast<string>(f_val) + "\n";
-					out_str.write(o_string.c_str(), o_string.size());
-				}
-			}
-		}
-	}
+	model.conv2d(shape(5, 5, 32), 32, shape(2, 2));
+	model.relu();
+	model.max_pool(shape(2, 2), shape(2, 2));
 
-	out_str.close();/**/
-
-	model.tanh();
 	model.flatten();
+	model.dense(512);
+	model.relu();
 	model.dense(10);
 
 	model.set_output_function<softmax>();

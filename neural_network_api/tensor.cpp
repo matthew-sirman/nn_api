@@ -70,7 +70,7 @@ tensor tensor::random(size_t size, float min, float max)
 	float offset = min;
 
 	float * data = (float *)malloc(sizeof(float) * size);
-	random_host_array(prng, data, scale, offset, size, time(NULL));
+	random_host_array(prng, data, scale, offset, size);
 	return tensor(size, data);
 }
 
@@ -96,7 +96,40 @@ tensor tensor::random(vector<size_t> shape, float min, float max)
 	for (int i = 0; i < shape.size(); i++)
 		size *= shape[i];
 	float * data = (float *)malloc(sizeof(float) * size);
-	random_host_array(prng, data, scale, offset, size, time(NULL));
+	random_host_array(prng, data, scale, offset, size);
+	return tensor(shape, data);
+}
+
+tensor tensor::random_normal(size_t size, float mean, float stddev)
+{
+	if (!random_initialised) {
+		if (TRUE_RAND)
+			get_prng(&prng, time(NULL));
+		else
+			get_prng(&prng, 0);
+		random_initialised = true;
+	}
+
+	float * data = (float *)malloc(sizeof(float) * size);
+	random_normal_array(prng, data, mean, stddev, size);
+	return tensor(size, data);
+}
+
+tensor tensor::random_normal(vector<size_t> shape, float mean, float stddev)
+{
+	if (!random_initialised) {
+		if (TRUE_RAND)
+			get_prng(&prng, time(NULL));
+		else
+			get_prng(&prng, 0);
+		random_initialised = true;
+	}
+
+	size_t size = 1;
+	for (int i = 0; i < shape.size(); i++)
+		size *= shape[i];
+	float * data = (float *)malloc(sizeof(float) * size);
+	random_normal_array(prng, data, mean, stddev, size);
 	return tensor(shape, data);
 }
 
