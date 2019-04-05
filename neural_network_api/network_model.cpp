@@ -53,40 +53,48 @@ namespace nn {
 		add(biases);
 	}*/
 
-	void network_model::dense(size_t units) {
+	void network_model::dense(size_t units, variable_initialiser weight_initialiser, variable_initialiser bias_initialiser) {
 		if (!__ent_spec)
 			throw exception("Entry size not specified");
 
 		//tensor weights = tensor::random({ units, init_layer_shape.width }, -0.1, 0.1);
 		//tensor biases = tensor::random(units, -0.1, 0.1);
-		tensor weights = tensor::random_normal({ units, init_layer_shape.width }, 0, 0.1);
-		tensor biases = tensor::random_normal(units, 0, 0.1);
+		tensor weights = tensor::random_normal({ units, init_layer_shape.width }, weight_initialiser.mean, weight_initialiser.stddev);
+		tensor biases = tensor::random_normal(units, weight_initialiser.mean, weight_initialiser.stddev);
 		matmul(weights);
 		add(biases);
 		init_layer_shape = shape(units);
 	}
 
-	void network_model::conv2d(shape filter_shape, size_t n_filters, shape padding)
+	void network_model::conv2d(shape filter_shape, size_t n_filters, padding_type padding, variable_initialiser initialiser)
+	{
+		switch (padding) {
+		case padding_type::VALID:
+			conv2d(filter_shape, n_filters, shape(0, 0), initialiser);
+			break;
+		case padding_type::SAME:
+			conv2d(filter_shape, n_filters, shape((filter_shape.width - 1) / 2, (filter_shape.height - 1) / 2), initialiser);
+			break;
+		}
+	}
+
+	void network_model::conv2d(shape filter_shape, size_t n_filters, shape padding, variable_initialiser initialiser)
 	{
 		if (!__ent_spec)
 			throw exception("Entry size not specified");
 
-		//tensor filter = tensor::random({ filter_shape.width, filter_shape.height, filter_shape.depth, n_filters }, -0.1, 0.1);
-		tensor filter = tensor::random_normal({ filter_shape.width, filter_shape.height, filter_shape.depth, n_filters }, 0, 0.01);
+		size_t f_depth = filter_shape.depth;
+		if (filter_shape.depth == 1)
+			f_depth = init_layer_shape.depth;
 
-		/*tensor biases = tensor::random({
+		//tensor filter = tensor::random({ filter_shape.width, filter_shape.height, filter_shape.depth, n_filters }, -0.1, 0.1);
+		tensor filter = tensor::random_normal({ filter_shape.width, filter_shape.height, f_depth, n_filters }, initialiser.mean, initialiser.stddev);
+
+		tensor biases = tensor::zeros({
 			init_layer_shape.width - filter_shape.width + 1,
 			init_layer_shape.width - filter_shape.height + 1,
 			n_filters
-			},
-			-0.1, 0.1
-		);*/
-		tensor biases = tensor::random_normal({
-			init_layer_shape.width - filter_shape.width + 1,
-			init_layer_shape.width - filter_shape.height + 1,
-			n_filters
-			},
-			0, 0.1
+			}
 		);
 
 		conv2d(filter, biases, padding);
@@ -109,8 +117,8 @@ namespace nn {
 		f->set_input_shape(init_layer_shape);
 
 		add_function * a_f = new add_function(biases);
-		instructions.push_back(a_f);
-		train_funcs.push_back(a_f);
+		//instructions.push_back(a_f);
+		//train_funcs.push_back(a_f);
 		a_f->set_input_shape(f->output_shape);
 
 		init_layer_shape = f->output_shape;
@@ -151,7 +159,7 @@ namespace nn {
 		if (!__ent_spec)
 			throw exception("Entry size not specified");
 
-		instructions.push_back(new relu_function(init_layer_shape.size()));
+		instructions.push_back(new relu_function(init_layer_shape));
 	}
 
 	void network_model::leaky_relu(float alpha)
@@ -159,7 +167,7 @@ namespace nn {
 		if (!__ent_spec)
 			throw exception("Entry size not specified");
 
-		instructions.push_back(new leaky_relu_function(init_layer_shape.size(), alpha));
+		instructions.push_back(new leaky_relu_function(init_layer_shape, alpha));
 	}
 
 	void network_model::tanh()
@@ -167,7 +175,7 @@ namespace nn {
 		if (!__ent_spec)
 			throw exception("Entry size not specified");
 
-		instructions.push_back(new tanh_function(init_layer_shape.size()));
+		instructions.push_back(new tanh_function(init_layer_shape));
 	}
 
 	void network_model::sigmoid()
@@ -175,18 +183,8 @@ namespace nn {
 		if (!__ent_spec)
 			throw exception("Entry size not specified");
 
-		instructions.push_back(new sigmoid_function(init_layer_shape.size()));
+		instructions.push_back(new sigmoid_function(init_layer_shape));
 	}
-
-	/*void network_model::softmax()
-	{
-		instructions.push_back(new softmax_function());
-	}
-
-	void network_model::softmax(float beta)
-	{
-		instructions.push_back(new softmax_function(0, beta));
-	}*/
 
 	void network_model::function(instruction_function *func)
 	{
@@ -197,16 +195,7 @@ namespace nn {
 	{
 		analytics_logger = &logger;
 	}
-
-	void network_model::initialise_model()
-	{
-		initialise_model(1);
-	}
-
-	/*void network_model::initialise_model(size_t batch_size) {
-		initialise_model(instructions[0]->input_shape, batch_size);
-	}*/
-
+	
 	void network_model::initialise_model(size_t batch_size)
 	{
 		if (instructions.size() == 0)
@@ -218,6 +207,8 @@ namespace nn {
 		//shape prev_layer_shape = instructions[0]->input_shape;
 
 		largest_layer_size = 0; // prev_layer_shape.size();
+
+		layer_shapes.push_back(instructions[0]->input_shape);
 
 		for (int i = 0; i < instructions.size(); i++) {
 			/*if (instructions[i]->input_shape.size() == 0 ||
@@ -379,6 +370,8 @@ namespace nn {
 			analytics_logger->init_logging();
 		}
 
+		__step = 0;
+
 		for (int epoch = 0; epoch < epochs; epoch++) {
 			if (analytics_logger != nullptr) {
 				//analytics_logger->start_log();
@@ -386,6 +379,9 @@ namespace nn {
 			}
 
 			cost_func->clear_loss();
+			float epoch_loss = 0;
+
+			current_batch_size = batch_size;
 			
 			for (int batch = 0; batch < n_batches; batch++) {
 				if (analytics_logger != nullptr) {
@@ -405,12 +401,16 @@ namespace nn {
 				);
 
 				for (int t_f = 0; t_f < train_funcs.size(); t_f++) {
-					opt->optimise(train_funcs[t_f], epoch);
+					opt->optimise(train_funcs[t_f], __step);
 				}
 
+				epoch_loss += cost_func->get_average_loss() * current_batch_size;
+
 				if (analytics_logger != nullptr) {
-					analytics_logger->on_step_end();
+					analytics_logger->on_step_end(cost_func->get_average_loss());
 				}
+
+				__step++;
 			}
 
 			/*for (int i = 0; i < instructions.size(); i++) {
@@ -421,9 +421,7 @@ namespace nn {
 			}*/
 
 			if (analytics_logger != nullptr) {
-				//analytics_logger->stop_log();
-				//analytics_logger->print_log(epoch + 1, cost_func->get_average_loss());
-				analytics_logger->on_epoch_end();
+				analytics_logger->on_epoch_end(epoch_loss / num);
 			}
 		}
 
@@ -451,6 +449,8 @@ namespace nn {
 			analytics_logger->init_logging();
 		}
 
+		__step = 0;
+
 		for (int epoch = 0; epoch < epochs; epoch++) {
 			if (analytics_logger != nullptr) {
 				analytics_logger->on_epoch_start();
@@ -458,6 +458,8 @@ namespace nn {
 
 			cost_func->clear_loss();
 			float epoch_loss = 0;
+
+			current_batch_size = batch_size;
 
 			for (int batch = 0; batch < n_batches; batch++) {
 				if (analytics_logger != nullptr) {
@@ -483,10 +485,8 @@ namespace nn {
 					current_batch_size
 				);
 
-				int x = 3;
-
 				for (int t_f = 0; t_f < train_funcs.size(); t_f++) {
-					opt->optimise(train_funcs[t_f], epoch);
+					opt->optimise(train_funcs[t_f], __step);
 				}
 
 				//printf("##########################################\n");
@@ -496,6 +496,8 @@ namespace nn {
 				if (analytics_logger != nullptr) {
 					analytics_logger->on_step_end(cost_func->get_average_loss());
 				}
+
+				__step++;
 			}
 
 			b_iter.reset_iterator();
@@ -517,7 +519,77 @@ namespace nn {
 		}
 	}
 
-	float network_model::get_accuracy(batch_iterator & b_iter)
+	float network_model::evaluate(tensor test_x, tensor test_y)	{
+		if (!model_initialised)
+			throw exception("Model not initialised");
+
+		test_x.initialise();
+		test_y.initialise();
+
+		/*if (input.get_dimensions() != 1)
+			throw exception("Input tensor must be one dimenional");
+
+		if (input.get_shape()[0] != layer_sizes[0])
+			throw exception(("Input tensor has size " + to_string(input.get_shape()[0]) + ", whereas model requires input of size " + to_string(layer_sizes[0])).c_str());*/
+
+		float * d_in_batch, *d_in_layer, *d_out_layer;
+		d_out_layer = new float();
+
+		//size_t last_size;
+
+		size_t num = test_x.get_shape()[0];
+		shape input_shape = layer_shapes[0];
+
+		int total_correct = 0;
+
+		//allocate_device_pointer(&d_in_batch, batch_size * input_size);
+
+		int n_batches = ceil(num / (float)batch_size);
+		size_t current_batch_size = batch_size;
+
+		for (int batch = 0; batch < n_batches; batch++) {
+
+			if (batch == n_batches - 1) {
+				current_batch_size = num % batch_size;
+				if (current_batch_size == 0)
+					current_batch_size = batch_size;
+			}
+
+			//b_iter.next_batch();
+			//d_in_batch = b_iter.get_next_batch()->get_dev_pointer();
+			d_in_batch = &test_x.get_dev_pointer()[batch * batch_size * input_shape.size()];
+
+			d_in_layer = d_in_batch;
+
+			for (int i = 0; i < instructions.size(); i++) {
+				d_out_layer = instructions[i]->get_out_vector();
+				fill_device_array(d_out_layer, 0, batch_size * instructions[i]->output_shape.size());
+				instructions[i]->run(d_in_layer, current_batch_size);
+				d_in_layer = d_out_layer;
+			}
+
+			//calculate no. correct values
+			
+			//compare argmax to labels
+			float * out_vals = (float *)malloc(sizeof(float) * current_batch_size * output_shape.size());
+			cuda_safe_call(cudaMemcpy(out_vals, d_out_layer, sizeof(float) * current_batch_size * output_shape.size(), cudaMemcpyDeviceToHost));
+
+			float * batch_labels = (float *)malloc(sizeof(float) * current_batch_size);
+			cuda_safe_call(cudaMemcpy(batch_labels, &test_y.get_dev_pointer()[batch * batch_size], sizeof(float) * current_batch_size, cudaMemcpyDeviceToHost));
+
+			for (int res = 0; res < current_batch_size; res++) {
+				float * start = &out_vals[res * output_shape.size()];
+				float * end = start + output_shape.size();
+				int res_argmax = distance(start, max_element(start, end));
+				if (res_argmax == batch_labels[res])
+					total_correct++;
+			}
+		}
+
+		return total_correct / (float)num;
+	}
+
+	float network_model::evaluate(batch_iterator & b_iter)
 	{
 		if (!model_initialised)
 			throw exception("Model not initialised");
@@ -566,7 +638,7 @@ namespace nn {
 			}
 
 			//calculate no. correct values
-			
+
 			//compare argmax to labels
 			float * out_vals = (float *)malloc(sizeof(float) * current_batch_size * output_shape.size());
 			cuda_safe_call(cudaMemcpy(out_vals, d_out_layer, sizeof(float) * current_batch_size * output_shape.size(), cudaMemcpyDeviceToHost));
@@ -585,7 +657,7 @@ namespace nn {
 
 		return total_correct / (float)num;
 	}
-	
+
 	void network_model::write_model_to_file(string model_folder, string model_name)
 	{
 		CreateDirectoryA((LPCSTR)(model_folder + "\\" + model_name).c_str(), NULL);
@@ -648,7 +720,7 @@ namespace nn {
 				f = new add_function();
 				f->deserialise(data_buff, 0);
 				break;
-			case function_id::MUL:
+			case function_id::MATMUL:
 				f = new matmul_function();
 				f->deserialise(data_buff, 0);
 				break;
@@ -711,7 +783,7 @@ namespace nn {
 
 			//fill_device_array(d_out_layer, 0, batch_size * i_func->output_shape.size());
 
-			cuda_safe_call(cudaMemset(d_out_layer, 0, sizeof(float) * i_func->output_shape.size()));
+			cuda_safe_call(cudaMemset(d_out_layer, 0, sizeof(float) * i_func->output_shape.size() * current_batch_size));
 
 			i_func->run(d_in_layer, current_batch_size);
 
@@ -720,105 +792,45 @@ namespace nn {
 			if (i_func->get_type() & instruction_function_type::TRAINABLE) {
 				trainable_function * t_func = (trainable_function *)i_func;
 				t_func->run_train_derivative(d_in_layer, current_batch_size);
-
-				/*float * test = (float *)malloc(sizeof(float) * 10);
-				cudaMemcpy(test, d_out_layer, sizeof(float) * 10, cudaMemcpyDeviceToHost);
-
-				for (int i = 0; i < 10; i++)
-					printf("test[%d] = %.32g\n", i, test[i]);
-				printf("\n");
-
-				double total = 0;
-
-				float * A = (float *)malloc(sizeof(float) * 784);
-				cudaMemcpy(A, t_func->get_train_vector(), sizeof(float) * 784, cudaMemcpyDeviceToHost);
-
-				float * B = (float *)malloc(sizeof(float) * 784);
-				cudaMemcpy(B, d_in_layer, sizeof(float) * 784, cudaMemcpyDeviceToHost);
-
-				for (int i = 0; i < 784; i++)
-					total += A[i] * B[i];
-				printf("total: %.32g\n", total);
-				printf("\n");*/
-
-				/*float * TEST = (float *)malloc(sizeof(float) * 10);
-				cudaMemcpy(TEST, &t_func->get_train_vector()[5*5*3*1], sizeof(float) * 10, cudaMemcpyDeviceToHost);
-
-				for (int i = 0; i < 10; i++)
-					printf("Test[%d] = %f\n", i, TEST[i]);
-				printf("\n");/**/
-
-				/*if (i == 0) {
-					float * T = (float *)malloc(sizeof(float) * 32*6);
-					cudaMemcpy(T, d_out_layer, sizeof(float) * 32 * 6, cudaMemcpyDeviceToHost);
-
-					for (int k = 0; k < 32 * 6; k++) {
-						printf("In[%d] = %f\n", k, T[k]);
-					}
-				}
-
-
-				if (i != 0) {
-					float * TEST = (float *)malloc(sizeof(float) * 6272);
-					cudaMemcpy(TEST, d_in_layer, sizeof(float) * 6272, cudaMemcpyDeviceToHost);
-					float * TEST1 = (float *)malloc(sizeof(float) * 6272);
-					cudaMemcpy(TEST1, t_func->get_train_vector(), sizeof(float) * 6272, cudaMemcpyDeviceToHost);
-
-					float ttl = 0;
-
-					for (int k = 0; k < 6272; k++) {
-						printf("In[%d] = %e\n", k, TEST[k]);// *TEST1[i]);
-						ttl += TEST[k] * TEST1[k];
-					}
-					printf("Total %f\n", ttl);
-					printf("\n");
-				}*/
-
 			}
-
-			/*float * test = (float *)malloc(sizeof(float) * 28);
-			cudaMemcpy(test, &d_out_layer[0], sizeof(float) * 28, cudaMemcpyDeviceToHost);
-			for (int k = 0; k < 28; k++) {
-				printf("test[%d] = %e\n", k, test[k]);
-			}
-			printf("\n");/**/
 
 			d_in_layer = d_out_layer;
-
-			//last_size = instructions[i]->output_size;
 		}
 		
-		/*float * test = (float *)malloc(sizeof(float) * 40);
-		cudaMemcpy(test, instructions.back()->get_out_vector(), sizeof(float) * 40, cudaMemcpyDeviceToHost);
+		/*int max_k = 4;
 
-		for (int k = 0; k < 40; k++)
-			printf("test[%d] = %e\n", k, test[k]);
+		float * test = (float *)malloc(sizeof(float) * max_k * 10);
+		cudaMemcpy(test, &instructions.back()->get_out_vector()[10 * 0], sizeof(float) *  max_k * 10, cudaMemcpyDeviceToHost);
+
+		for (int k = 0; k < max_k; k++) {
+			for (int m = 0; m < 10; m++)
+				printf("test[%d] = %e\n", k * 10 + m, test[k * 10 + m]);
+			printf("\n");
+		}
+
 		printf("\n");/**/
 
 		cost_func->cost(instructions.back()->get_out_vector(), d_y_batch, current_batch_size);
-		
-		//after forward pass, each of the layers still has reference to the output from that layer.
 
 		//the current derivative value at each step i.e df1/df2 * df2/df3 * ... * dfn-1/dfn
 		//needs to be the size of the largest layer * batch size
 		float * d_current_layer_cr_derivative;
-		//float * d_temp;
 
 		allocate_device_pointer(&d_current_layer_cr_derivative, largest_layer_size * current_batch_size);
-		//allocate_device_pointer(&d_temp, largest_layer_size * current_batch_size);
 
 		cost_func->cost_derivative(instructions.back()->get_out_vector(), d_y_batch, current_batch_size);
 
 		copy_into_device_array(cost_func->get_derivative_vector(), d_current_layer_cr_derivative, cost_func->get_size() * current_batch_size, 0);
-		
 		for (int i = instructions.size() - 1; i >= 0; i--) {
-			
-			/*float * test = (float *)malloc(sizeof(float) * 40);
-			cudaMemcpy(test, d_current_layer_cr_derivative, sizeof(float) * 40, cudaMemcpyDeviceToHost);
+			/*if (i == 2) {
+				test = (float *)malloc(sizeof(float) * largest_layer_size * current_batch_size);
+				cudaMemcpy(test, d_current_layer_cr_derivative, sizeof(float) * largest_layer_size * current_batch_size, cudaMemcpyDeviceToHost);
 
-			for (int i = 0; i < 40; i++)
-				printf("test[%d] = %e\n", i, test[i]);
-			printf("\n");/**/
+				printf("Layer %d\n", i);
+				for (int k = 0; k < 10; k++)
+					printf("test[%d] = %e\n", k, test[k]);
+				printf("\n");
+			}/**/
 
 			instruction_function * i_func = instructions[i];
 
@@ -829,24 +841,8 @@ namespace nn {
 
 			if (i != 0)
 				i_func->back_propagate(d_current_layer_cr_derivative, current_batch_size);
-
-			//needs to move
-			/*if (i_func->get_type() & instruction_function_type::INTER_DIM_TRANSFORM) {
-				matrix_multiply<float, order::COL, order::COL, order::COL>(
-					d_matrix<float>({ (int)i_func->output_shape.width, (int)i_func->input_shape.width, i_func->get_derivative_vector() }),
-					d_matrix<float>({ (int)current_batch_size, (int)i_func->output_shape.width, d_current_layer_cr_derivative }),
-					d_matrix<float>({ (int)current_batch_size, (int)i_func->input_shape.width, d_temp }));
-
-				//cuda_safe_call(cudaMemcpy(d_current_layer_cr_derivative, d_temp, sizeof(float) * current_batch_size * i_func->input_size, cudaMemcpyDeviceToDevice));
-				copy_into_device_array(d_temp, d_current_layer_cr_derivative, current_batch_size * i_func->input_shape.width, 0);
-			}
-			else {
-				hadamard_product(d_current_layer_cr_derivative, i_func->get_derivative_vector(), d_current_layer_cr_derivative,
-					i_func->input_shape.size() * current_batch_size);
-			}*/
 		}
 		
 		deallocate_device_pointer(d_current_layer_cr_derivative);
-		//deallocate_device_pointer(d_temp);
 	}
 }

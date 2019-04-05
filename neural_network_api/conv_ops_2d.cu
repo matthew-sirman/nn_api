@@ -410,7 +410,6 @@ __global__ void d_filter_outer_convolve_2d(
 	shape filter_chunks,
 	shape output_shape,
 	shape padding,
-	int input_depth,
 	int filter_no,
 	size_t batch_size) {
 
@@ -421,15 +420,15 @@ __global__ void d_filter_outer_convolve_2d(
 	int m_id = threadIdx.y;
 	int k_id = threadIdx.z;
 
-	int f_tile_n = blockIdx.x % filter_chunks.width;
-	int f_tile_m = blockIdx.y % filter_chunks.height;
-	int f_tile_k = blockIdx.z % filter_chunks.depth;
+	int f_tile_n = blockIdx.x % filter_chunks.width * FILTER_BLOCK_SIZE_N;
+	int f_tile_m = blockIdx.y % filter_chunks.height * FILTER_BLOCK_SIZE_M;
+	int f_tile_k = blockIdx.z % filter_chunks.depth * FILTER_BLOCK_SIZE_K;
 
 	int b_tile_n = blockIdx.x / filter_chunks.width * CONV_OUTER_BLOCK_SIZE_N;
 	int b_tile_m = blockIdx.y / filter_chunks.height * CONV_OUTER_BLOCK_SIZE_M;
-	int b_tile_k = (blockIdx.z / filter_chunks.depth) % input_depth * CONV_OUTER_BLOCK_SIZE_K;
+	//int b_tile_k = (blockIdx.z / filter_chunks.depth) % input_depth * CONV_OUTER_BLOCK_SIZE_K;
 
-	int b_elem = blockIdx.z / (filter_chunks.depth * input_depth);
+	int b_elem = (blockIdx.z / filter_chunks.depth) * CONV_OUTER_BLOCK_SIZE_K;
 
 	//load filter chunk
 
@@ -457,8 +456,8 @@ __global__ void d_filter_outer_convolve_2d(
 					g_load_k_id < filter_shape.depth) {
 
 					int g_index = g_load_k_id * filter_shape.width * filter_shape.height +
-						(filter_shape.height - g_load_m_id) * filter_shape.width +
-						(filter_shape.width - g_load_n_id);
+						(filter_shape.height - 1 - g_load_m_id) * filter_shape.width +
+						(filter_shape.width - 1 - g_load_n_id);
 
 					s_filter[s_index] = filter[g_index];
 				}
@@ -476,7 +475,7 @@ __global__ void d_filter_outer_convolve_2d(
 	#pragma unroll
 	for (int b_load_k = 0; b_load_k < CONV_OUTER_BLOCK_SIZE_K; b_load_k += CONV_OUTER_THREAD_SIZE_K) {
 		int load_k_id = b_load_k + k_id;
-		int g_load_k_id = b_tile_k + load_k_id;
+		int g_load_k_id = b_elem + load_k_id;
 
 		#pragma unroll
 		for (int b_load_m = 0; b_load_m < CONV_OUTER_BLOCK_SIZE_M + FILTER_BLOCK_SIZE_M; b_load_m += CONV_OUTER_THREAD_SIZE_M) {
@@ -496,11 +495,10 @@ __global__ void d_filter_outer_convolve_2d(
 					g_load_n_id < input_shape.width &&
 					0 <= g_load_m_id &&
 					g_load_m_id < input_shape.height &&
-					filter_no + g_load_k_id < input_shape.depth &&
-					b_elem < batch_size) {
+					g_load_k_id < batch_size) {
 
-					int g_index = b_elem * input_shape.width * input_shape.height * input_shape.depth +
-						(filter_no + g_load_k_id) * input_shape.width * input_shape.height +
+					int g_index = g_load_k_id * input_shape.width * input_shape.height * input_shape.depth +
+						filter_no * input_shape.width * input_shape.height +
 						g_load_m_id * input_shape.width +
 						g_load_n_id;
 
@@ -519,10 +517,11 @@ __global__ void d_filter_outer_convolve_2d(
 
 	#pragma unroll
 	for (int f_k = 0; f_k < FILTER_BLOCK_SIZE_K; f_k++) {
+		int out_k_id = f_tile_k + f_k;
+
 		#pragma unroll
 		for (int b_k = 0; b_k < CONV_OUTER_THREAD_BLOCK_K; b_k++) {
 			int b_k_id = k_id * CONV_OUTER_THREAD_BLOCK_K + b_k;
-			int out_k_id = (b_tile_k + b_k_id) * output_shape.depth + f_k;
 
 			#pragma unroll
 			for (int b_m = 0; b_m < CONV_OUTER_THREAD_BLOCK_M; b_m++) {
@@ -539,13 +538,14 @@ __global__ void d_filter_outer_convolve_2d(
 						out_k_id < output_shape.depth &&
 						b_elem < batch_size) {
 
-						int out_index = (b_elem * output_shape.depth + out_k_id) * output_shape.width * output_shape.height +
+						int out_index = (b_elem + b_k_id) * output_shape.width * output_shape.height * output_shape.depth +
+							out_k_id * output_shape.width * output_shape.height +
 							out_m_id * output_shape.width +
 							out_n_id;
 
-						float inc = calculate_conv2d_dot<CONV_OUTER_BLOCK_SIZE_N + FILTER_BLOCK_SIZE_N, CONV_OUTER_BLOCK_SIZE_M + FILTER_BLOCK_SIZE_M, CONV_OUTER_THREAD_BLOCK_K>(
-							s_filter,
-							s_load_block,
+						float inc = calculate_conv2d_dot<CONV_OUTER_BLOCK_SIZE_N + FILTER_BLOCK_SIZE_N, CONV_OUTER_BLOCK_SIZE_M + FILTER_BLOCK_SIZE_M, 1>(
+							&s_filter[FILTER_BLOCK_SIZE_N * FILTER_BLOCK_SIZE_M * f_k],
+							&s_load_block[(CONV_OUTER_BLOCK_SIZE_N + FILTER_BLOCK_SIZE_N) * (CONV_OUTER_BLOCK_SIZE_M + FILTER_BLOCK_SIZE_M) * b_k],
 							b_n_id,
 							b_m_id
 						);
@@ -910,6 +910,7 @@ __global__ void d_pool_2d(
 	shape pool_size, 
 	shape stride, 
 	shape output_shape, 
+	shape padding,
 	size_t batch_size) {
 	__shared__ float s_block[(POOL_BLOCK_SIZE_N + MAX_POOL_SIZE) * (POOL_BLOCK_SIZE_M + MAX_POOL_SIZE) * POOL_BLOCK_DEPTH];
 
@@ -962,8 +963,8 @@ __global__ void d_pool_2d(
 		//loop through each stride with even divisions among threads
 		//each thread iterates through every pool with the top left corner in the thread's allocated block
 
-		int n_offset = ((input_shape.width - pool_size.width) - (n_tile + n_id * POOL_THREAD_BLOCK_N)) % stride.width;
-		int m_offset = ((input_shape.height - pool_size.height) - (m_tile + m_id * POOL_THREAD_BLOCK_M)) % stride.height;
+		int n_offset = ((input_shape.width + padding.width - pool_size.width) - (n_tile + n_id * POOL_THREAD_BLOCK_N)) % stride.width;
+		int m_offset = ((input_shape.height + padding.height - pool_size.height) - (m_tile + m_id * POOL_THREAD_BLOCK_M)) % stride.height;
 
 		//int k_offset = ((input_shape.depth - pool_size.depth) - (k_tile _ k_id * POOL_THREAD_BLOCK_K)) % stride.depth;
 
@@ -1021,7 +1022,7 @@ __global__ void d_pool_2d_derivative(
 
 	if (t_id < input_size && batch_index < batch_size) {
 		int out_id = mask[batch_index * input_size + t_id];
-		output[batch_index * output_size + out_id] += input[batch_index * input_size + t_id];
+		atomic_add(&output[batch_index * output_size + out_id], input[batch_index * input_size + t_id]);
 	}
 }
 
@@ -1112,12 +1113,17 @@ void max_pool_2d(
 	shape pool_size, 
 	shape stride, 
 	shape output_shape, 
+	shape padding,
 	size_t batch_size)
 {
 	dim3 threads_per_block(POOL_THREAD_SIZE_N, POOL_THREAD_SIZE_M, POOL_THREAD_SIZE_K);
-	dim3 blocks_per_grid(ceil_div(POOL_BLOCK_SIZE_N, input_shape.width), ceil_div(POOL_BLOCK_SIZE_M, input_shape.height), ceil_div(POOL_BLOCK_DEPTH, input_shape.depth * batch_size));
+	dim3 blocks_per_grid(
+		ceil_div(POOL_BLOCK_SIZE_N, input_shape.width + padding.width), 
+		ceil_div(POOL_BLOCK_SIZE_M, input_shape.height + padding.height), 
+		ceil_div(POOL_BLOCK_DEPTH, input_shape.depth * batch_size)
+	);
 	
-	d_pool_2d<<<blocks_per_grid, threads_per_block>>>(d_input, d_mask, d_output, input_shape, pool_size, stride, output_shape, batch_size);
+	d_pool_2d<<<blocks_per_grid, threads_per_block>>>(d_input, d_mask, d_output, input_shape, pool_size, stride, output_shape, padding, batch_size);
 	/*size_t max_pool_dim = pool_size.max_dim();
 
 	if (max_pool_dim <= 2) {
@@ -1156,7 +1162,7 @@ void filter_outer_convolve_2d(
 	dim3 blocks_per_grid(
 		ceil_div(CONV_OUTER_BLOCK_SIZE_N, input_shape.width) * filter_chunks.width,
 		ceil_div(CONV_OUTER_BLOCK_SIZE_M, input_shape.height) * filter_chunks.height,
-		ceil_div(CONV_OUTER_BLOCK_SIZE_K, input_shape.depth) * filter_chunks.depth * batch_size
+		ceil_div(CONV_OUTER_BLOCK_SIZE_K, batch_size) * filter_chunks.depth
 	);
 	//dim3 blocks_per_grid(1, 1, batch_size);
 
@@ -1179,7 +1185,6 @@ void filter_outer_convolve_2d(
 			filter_chunks,
 			output_shape,
 			padding,
-			ceil_div(CONV_OUTER_BLOCK_SIZE_K, input_shape.depth),
 			filter,
 			batch_size
 		);
@@ -1320,6 +1325,7 @@ void max_pool_2d_derivative(
 {
 	size_t in_size = input_shape.width * input_shape.height;
 	size_t out_size = output_shape.width * output_shape.height;
+
 	dim3 threads_per_block(in_size, 1);
 	dim3 blocks_per_grid(1, batch_size * output_shape.depth);
 	if (in_size > BLOCK_SIZE) {

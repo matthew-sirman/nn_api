@@ -28,7 +28,7 @@ namespace nn {
 
 	enum NN_LIB_API function_id {
 		ADD,
-		MUL,
+		MATMUL,
 		RELU,
 		L_RELU,
 		BATCH_NORM,
@@ -43,11 +43,15 @@ namespace nn {
 	enum NN_LIB_API out_function_id {
 		SOFTMAX = 0x00
 	};
+
+	enum NN_LIB_API padding_type {
+		VALID,
+		SAME
+	};
 	
 	class NN_LIB_API serialisable_function
 	{
 	public:
-		virtual void run(float* input) = 0;
 		virtual void run(float* input, int batch_size) = 0;
 
 		virtual size_t get_serialise_size();
@@ -67,7 +71,6 @@ namespace nn {
 
 		virtual void back_propagate(float * current_pds, int num) = 0;
 
-		virtual void initialise();
 		virtual void initialise(size_t batch_size);
 		virtual void uninitialise();
 
@@ -104,7 +107,6 @@ namespace nn {
 		//virtual void run(float * input) = 0;
 		//virtual void run(float * input, int batch_size) = 0;
 
-		virtual void initialise();
 		virtual void initialise(shape input_shape, size_t batch_size);
 		virtual void uninitialise();
 
@@ -135,7 +137,6 @@ namespace nn {
 		inline tensor get_train_tensor() { return train_tensor; }
 		inline size_t get_train_tensor_size() { return train_tensor.get_size(); }
 
-		void initialise() override;
 		void initialise(size_t batch_size) override;
 		void uninitialise() override;
 
@@ -167,14 +168,12 @@ namespace nn {
 		add_function(tensor biases);
 		~add_function();
 
-		void run(float* input) override;
 		void run(float* input, int batch_size) override;
 		void run_derivative(float* input) override;
 		void run_train_derivative(float* input, int batch_size) override;
 
 		void back_propagate(float * current_pds, int num) override;
 
-		void initialise() override;
 		void initialise(size_t batch_size) override;
 		void uninitialise() override;
 
@@ -192,14 +191,12 @@ namespace nn {
 		matmul_function(tensor weights);
 		~matmul_function();
 
-		void run(float* input) override;
 		void run(float* input, int batch_size) override;
 		void run_derivative(float* input) override;
 		void run_train_derivative(float* input, int batch_size) override;
 
 		void back_propagate(float * current_pds, int num) override;
 
-		void initialise() override;
 		void initialise(size_t batch_size) override;
 		void uninitialise() override;
 
@@ -228,14 +225,12 @@ namespace nn {
 		conv2d_function(tensor filter, shape padding = (0, 0));
 		~conv2d_function();
 
-		void run(float * input) override;
 		void run(float * input, int batch_size) override;
 		void run_derivative(float * input) override;
 		void run_train_derivative(float * input, int num) override;
 
 		void back_propagate(float * current_pds, int num) override;
 
-		void initialise() override;
 		void initialise(size_t batch_size) override;
 		void uninitialise() override;
 
@@ -262,15 +257,13 @@ namespace nn {
 		max_pool_function(shape pool_size, shape stride);
 		~max_pool_function();
 
-		void run(float* input) override;
 		void run(float* input, int batch_size) override;
 		void run_derivative(float* input) override;
 
 		void back_propagate(float * current_pds, int num) override;
 
-		void initialise();
-		void initialise(size_t batch_size);
-		void uninitialise();
+		void initialise(size_t batch_size) override;
+		void uninitialise() override;
 
 		void set_input_shape(shape input_shape) override;
 		
@@ -281,9 +274,9 @@ namespace nn {
 		shape pool_size;
 		shape stride;
 
-		int * d_mask;
+		shape padding;
 
-		int * test;
+		int * d_mask;
 	};
 
 	class reshape_function : public instruction_function
@@ -293,7 +286,6 @@ namespace nn {
 		reshape_function(shape in_shape, shape out_shape) { this->input_shape = in_shape; this->output_shape = out_shape; };
 		~reshape_function() {};
 
-		inline void run(float* input) override { run(input, 1); }
 		inline void run(float* input, int batch_size) override {
 			cuda_safe_call(cudaMemcpy(d_out_vector, input, sizeof(float) * input_shape.size() * batch_size, cudaMemcpyDeviceToDevice));
 		}
@@ -319,16 +311,14 @@ namespace nn {
 	class relu_function : public instruction_function {
 	public:
 		relu_function();
-		relu_function(size_t input_size);
+		relu_function(shape input_shape);
 		~relu_function();
 
-		void run(float* input) override;
 		void run(float* input, int batch_size) override;
 		void run_derivative(float* input) override;
 
 		void back_propagate(float * current_pds, int num) override;
 
-		void initialise() override;
 		void initialise(size_t batch_size) override;
 		void uninitialise() override;
 
@@ -339,16 +329,14 @@ namespace nn {
 	public:
 		leaky_relu_function() {};
 		leaky_relu_function(float alpha);
-		leaky_relu_function(size_t input_size, float alpha);
+		leaky_relu_function(shape input_shape, float alpha);
 		~leaky_relu_function();
 
-		void run(float* input) override;
 		void run(float* input, int batch_size) override;
 		void run_derivative(float* input) override;
 
 		void back_propagate(float * current_pds, int num) override;
 
-		void initialise() override;
 		void initialise(size_t batch_size) override;
 		void uninitialise() override;
 
@@ -362,16 +350,14 @@ namespace nn {
 	class tanh_function : public instruction_function {
 	public:
 		tanh_function();
-		tanh_function(size_t input_size);
+		tanh_function(shape input_shape);
 		~tanh_function();
 
-		void run(float * input) override;
 		void run(float * input, int batch_size) override;
 		void run_derivative(float * input) override;
 
 		void back_propagate(float * current_pds, int batch_size) override;
 
-		void initialise() override;
 		void initialise(size_t batch_size) override;
 		void uninitialise() override;
 
@@ -381,20 +367,28 @@ namespace nn {
 	class sigmoid_function : public instruction_function {
 	public:
 		sigmoid_function();
-		sigmoid_function(size_t input_size);
+		sigmoid_function(shape input_shape);
 		~sigmoid_function();
 
-		void run(float * input) override;
 		void run(float * input, int batch_size) override;
 		void run_derivative(float * input) override;
 
 		void back_propagate(float * current_pds, int batch_size) override;
 
-		void initialise() override;
 		void initialise(size_t batch_size) override;
 		void uninitialise() override;
 
 		void serialise(char * stream_buffer, size_t offset) override;
+	};
+
+	class lstm_function : public trainable_function {
+	public:
+		lstm_function();
+		~lstm_function();
+
+
+	private:
+
 	};
 
 	class batch_normalisation_function : public instruction_function {
@@ -402,51 +396,26 @@ namespace nn {
 		batch_normalisation_function();
 		batch_normalisation_function(size_t input_size);
 
-		void run(float * input) override;
 		void run(float * input, int batch_size) override;
 		void run_derivative(float * input) override;
 
 		void back_propagate(float * current_pds, int num) override;
 
-		void initialise() override;
 		void initialise(size_t batch_size) override;
 		void uninitialise() override;
 
 		void serialise(char * stream_buffer, size_t offset) override;
 	};
-
-	/*class softmax_function : public instruction_function {
-	public:
-		softmax_function();
-		softmax_function(size_t input_size);
-		softmax_function(size_t input_size, float beta);
-		~softmax_function();
-
-		void run(float* input) override;
-		void run(float* input, int batch_size) override;
-		void run_derivative(float* input) override;
-
-		void initialise() override;
-		void initialise(size_t batch_size) override;
-		void uninitialise() override;
-
-		float beta;
-
-	private:
-		float * d_partial_mul_outputs;
-	};*/
-
+	
 	class NN_LIB_API softmax : public output_function {
 	public:
 		softmax();
 		softmax(size_t input_size);
 		~softmax();
 
-		void run(float* input) override;
 		void run(float* input, int batch_size) override;
 		//void run_derivative(float* input) override;
 
-		void initialise() override;
 		void initialise(shape input_shape, size_t batch_size) override;
 		void uninitialise() override;
 

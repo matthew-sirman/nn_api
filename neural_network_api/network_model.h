@@ -23,6 +23,7 @@
 //#include "linear_algebra_ops.h"
 #include "analytics.h"
 #include "batch_iterator.h"
+#include "variable_initialiser.h"
 
 #include "timer.h"
 
@@ -39,10 +40,10 @@ namespace nn {
 		void entry(shape entry_shape);
 		void add(tensor biases);
 		void matmul(tensor weights);
-		//void dense(size_t in_size, size_t out_size);
-		void dense(size_t units);
-		void conv2d(shape filter_shape, size_t n_filters, shape padding = shape(0, 0));
-		void conv2d(tensor filter, tensor biases, shape padding = shape(0, 0));
+		void dense(size_t units, variable_initialiser weight_initialiser = variable_initialiser(), variable_initialiser bias_initialiser = variable_initialiser());
+		void conv2d(shape filter_shape, size_t n_filters, padding_type padding = padding_type::VALID, variable_initialiser initialiser = variable_initialiser());
+		void conv2d(shape filter_shape, size_t n_filters, shape padding, variable_initialiser initialiser = variable_initialiser());
+		void conv2d(tensor filter, tensor biases, shape padding);
 		void max_pool(shape pool_size, shape stride);
 		void flatten();
 		void reshape(shape output_shape);
@@ -50,8 +51,6 @@ namespace nn {
 		void leaky_relu(float alpha);
 		void tanh();
 		void sigmoid();
-		/*void softmax();
-		void softmax(float beta);*/
 
 		void function(instruction_function *func);
 
@@ -65,7 +64,6 @@ namespace nn {
 
 		void add_logger(analytics logger);
 
-		void initialise_model();
 		void initialise_model(size_t batch_size = 128);
 		//void initialise_model(shape input_shape, size_t batch_size = 128);
 		void uninitialise_model();
@@ -75,7 +73,8 @@ namespace nn {
 		void train(tensor train_x, tensor train_y, int epochs);
 		void train(batch_iterator &b_iter, int epochs);
 
-		float get_accuracy(batch_iterator &b_iter);
+		float evaluate(tensor test_x, tensor test_y);
+		float evaluate(batch_iterator &b_iter);
 
 		void write_model_to_file(string model_folder, string model_name);
 		static network_model load_model_from_file(string model_folder, string model_name);
@@ -105,6 +104,7 @@ namespace nn {
 		bool model_initialised = false;
 
 		bool __ent_spec = false;
+		int __step = 0;
 	};
 }
 

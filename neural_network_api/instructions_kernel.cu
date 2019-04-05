@@ -846,15 +846,16 @@ __global__ void d_apply_sigmoid(float * input, float * output, int size) {
 
 template <unsigned int block_size>
 __global__ void d_apply_softmax(float *input, float *output, int input_size, float beta) {
-	__shared__ float s_sum[block_size * 2], s_exp_vals[block_size * 2];
+	__shared__ double s_sum[block_size * 2];
+	__shared__ double s_exp_vals[block_size * 2];
 
 	unsigned int tid = threadIdx.x + blockDim.x * blockIdx.x;
 	unsigned int inid = blockIdx.y;
 	
 	unsigned int exp_index = inid * input_size + tid;
 
-	float tmp0 = 0;
-	float tmp1 = 0;
+	double tmp0 = 0;
+	double tmp1 = 0;
 
 	if (tid + block_size < input_size) {
 		tmp0 = expf(beta * input[exp_index + block_size]);
@@ -1603,14 +1604,14 @@ void random_normal_array(curandGenerator_t prng, float * array_p, float mean, fl
 
 void fill_device_array(float * d_array_p, float value, int size)
 {
-	/*dim3 threads_per_block(size);
+	dim3 threads_per_block(size);
 	dim3 blocks_per_grid(1);
 	if (size > BLOCK_SIZE) {
 		threads_per_block.x = BLOCK_SIZE;
 		blocks_per_grid.x = ceil((float)size / BLOCK_SIZE);
 	}
-	d_fill_array<<<blocks_per_grid, threads_per_block>>>(d_array_p, value, size);*/
-	cuda_safe_call(cudaMemset(d_array_p, value, size * sizeof(float)));
+	d_fill_array<<<blocks_per_grid, threads_per_block>>>(d_array_p, value, size);
+	//cuda_safe_call(cudaMemset(d_array_p, value, size * sizeof(float)));
 }
 
 void add_matrices(float * d_input_p, float * d_out, float * d_bias_p, int size, int num)

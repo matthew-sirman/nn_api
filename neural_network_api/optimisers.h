@@ -38,15 +38,15 @@ namespace nn {
 	class NN_LIB_API adam : public optimiser
 	{
 	public:
-		adam(float learning_rate, float beta1 = 0.9, float beta2 = 0.999, float epsilon = 1e-8);
+		adam(double learning_rate, double beta1 = 0.9, double beta2 = 0.999, double epsilon = 1e-8);
 		~adam();
 
 		void optimise(trainable_function * t_func, int t_step) override;
 
 	private:
-		float learning_rate;
-		float beta1;
-		float beta2;
-		float epsilon;
+		double learning_rate;
+		double beta1;
+		double beta2;
+		double epsilon;
 	};
 }

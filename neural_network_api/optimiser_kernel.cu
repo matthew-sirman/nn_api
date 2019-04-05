@@ -3,7 +3,7 @@
 __global__ void d_adam_update_momentum(
 	float * momentum,
 	float * derivatives, 
-	float beta, 
+	double beta,
 	size_t size) 
 {
 	int tid = threadIdx.x + blockDim.x * blockIdx.x;
@@ -16,7 +16,7 @@ __global__ void d_adam_update_momentum(
 __global__ void d_adam_update_velocity(
 	float * velocity, 
 	float * derivatives, 
-	float beta, 
+	double beta,
 	size_t size)
 {
 	int tid = threadIdx.x + blockDim.x * blockIdx.x;
@@ -31,8 +31,8 @@ __global__ void d_adam_update_parameters(
 	float * params, 
 	float * momentum, 
 	float * velocity, 
-	float eta,
-	float epsilon, 
+	double eta,
+	double epsilon,
 	size_t size) 
 {
 	int tid = threadIdx.x + blockDim.x * blockIdx.x;
@@ -45,7 +45,7 @@ __global__ void d_adam_update_parameters(
 void adam_update_momentum(
 	float * d_momentum, 
 	float * d_derivatives, 
-	float beta, 
+	double beta,
 	size_t size)
 {
 	dim3 threads_per_block(size);
@@ -66,7 +66,7 @@ void adam_update_momentum(
 void adam_update_velocity(
 	float * d_velocity, 
 	float * d_derivatives, 
-	float beta, 
+	double beta,
 	size_t size)
 {
 	dim3 threads_per_block(size);
@@ -88,10 +88,10 @@ void adam_update_parameters(
 	float * d_params, 
 	float * d_momentum, 
 	float * d_velocity, 
-	float learning_rate, 
-	float beta1, 
-	float beta2, 
-	float epsilon, 
+	double learning_rate,
+	double beta1,
+	double beta2,
+	double epsilon,
 	int t_step, 
 	size_t size)
 {
@@ -102,7 +102,7 @@ void adam_update_parameters(
 		blocks_per_grid.x = ceil_div(BLOCK_SIZE, size);
 	}
 
-	float eta = learning_rate * (sqrtf(1 - powf(beta2, t_step + 1)) / (1 - powf(beta1, t_step + 1)));
+	double eta = learning_rate * (sqrtf(1 - pow(beta2, t_step + 1)) / (1 - pow(beta1, t_step + 1)));
 	
 	d_adam_update_parameters<<<blocks_per_grid, threads_per_block>>>(
 		d_params,

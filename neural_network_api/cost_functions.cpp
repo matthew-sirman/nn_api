@@ -87,9 +87,14 @@ namespace nn {
 
 	void softmax_cross_entropy::cost_derivative(float * input, float * y, size_t batch_size)
 	{
+		cuda_safe_call(cudaMemset(d_softmax, 0, sizeof(float) * input_shape.size() * batch_size));
+		cuda_safe_call(cudaMemset(d_der_vector, 0, sizeof(float) * input_shape.size() * batch_size));
+
 		apply_softmax(input, d_softmax, input_shape.size(), batch_size, 1);
 
 		softmax_cross_entropy_derivative(d_softmax, y, d_der_vector, input_shape.size(), batch_size);
+
+		scalar_matrix_multiply_f(d_der_vector, d_der_vector, 1.0 / batch_size, input_shape.size() * batch_size);
 	}
 
 	void softmax_cross_entropy::initialise(shape input_shape, size_t batch_size, int n_batches)

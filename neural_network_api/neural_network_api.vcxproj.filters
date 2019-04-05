@@ -84,6 +84,9 @@
     <ClInclude Include="heirarchy_image_loader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="variable_initialiser.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="analytics.cpp">
@@ -123,6 +126,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="heirarchy_image_loader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="variable_initialiser.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

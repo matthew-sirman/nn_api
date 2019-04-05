@@ -35,6 +35,10 @@ public:
 	void reset_iterator() override;
 	void initialise(size_t batch_size) override;
 
+	shape load_size() { 
+		return shape(n_rows, n_cols);
+	}
+
 private:
 	static int read_int(char * buff);
 

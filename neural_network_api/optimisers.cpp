@@ -33,7 +33,7 @@ namespace nn {
 		//t_func->train_function(learning_rate, momentum);
 	}
 
-	adam::adam(float learning_rate, float beta1, float beta2, float epsilon)
+	adam::adam(double learning_rate, double beta1, double beta2, double epsilon)
 	{
 		this->learning_rate = learning_rate;
 		this->beta1 = beta1;
@@ -78,24 +78,11 @@ namespace nn {
 			size
 		);
 
-		/*float * test = (float *)malloc(sizeof(float) * 10);
-		cudaMemcpy(test, t_func->get_derivative_vector(), sizeof(float) * 10, cudaMemcpyDeviceToHost);
+		/*float * test = (float *)malloc(sizeof(float) * 50);
+		cudaMemcpy(test, &t_func->get_train_vector()[5 * 5 * 32], sizeof(float) * 50, cudaMemcpyDeviceToHost);
 
-		for (int i = 0; i < 10; i++)
-			printf("test[%d] = %e\n", i, test[i]);
+		for (int i = 0; i < 50; i++)
+			printf("Test[%d] = %e\n", i, test[i]);
 		printf("\n");/**/
-
-		/*if (t_func->input_shape != t_func->output_shape) {
-			float * test = (float *)malloc(sizeof(float) * t_func->get_train_tensor().get_size());
-			cudaMemcpy(test, t_func->get_train_tensor().get_dev_pointer(), sizeof(float) * t_func->get_train_tensor().get_size(), cudaMemcpyDeviceToHost);
-
-			for (int m = 0; m < 4; m++) {
-				for (int n = 0; n < 4; n++) {
-					printf("%e ", test[m * t_func->input_shape.width + n]);
-				}
-				printf("\n");
-			}
-			printf("\n\n");
-		}*/
 	}
 }
