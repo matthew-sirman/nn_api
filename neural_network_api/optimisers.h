@@ -1,52 +1,123 @@
 #pragma once
 
-/*
-#ifdef NEURALNETWORKAPI_EXPORTS
-#define NN_LIB_API __declspec(dllexport)
-#else
-#define NN_LIB_API __declspec(dllimport)
-#endif
-*/
-#define NN_LIB_API
-
 #include "instruction_functions.h"
 #include "optimiser_kernel.h"
 
 namespace nn {
-	class NN_LIB_API optimiser
+	//Optimiser Base Class
+	//Abstract base class for all optimiser functions. To create a custom optimiser,
+	//inherit from this class and implement the abstract functions.
+	//An optimiser should update a set of trainable parameters given a set of trainable
+	//functions.
+	class optimiser
 	{
 	public:
-		optimiser();
-		~optimiser();
-		virtual void optimise(trainable_function * t_func, int t_step) = 0;
+		//Default Constructor
+		optimiser() {};
+
+		//Destructor
+		~optimiser() {};
+
+		//API FUNCTION
+		//Optimiser
+		//Called by the API to optimise the variables in the training functions after
+		//each training step.
+		virtual void optimise() = 0;
+
+		//API FUNCTION
+		//Initialise
+		//Initialise the optimiser by passing in the training functions it has to optimise
+		virtual void initialise(vector<trainable_function*> t_funcs) { this->t_funcs = t_funcs; };
+
+		//API FUNCTION
+		//Uninitialise
+		//Uninitialise the optimiser
+		virtual void uninitialise() {};
+	protected:
+		vector<trainable_function*> t_funcs;
 	};
 
-	class NN_LIB_API stochastic_gradient_descent : public optimiser
+	//NOT IMPLEMENTED
+	//Stochastic Gradient Descent Optimiser
+	//Optimises a function by taking small steps in the direction of steepest
+	//descent to approach a local minimum
+	class stochastic_gradient_descent : public optimiser
 	{
 	public:
-		stochastic_gradient_descent(float learning_rate);
-		stochastic_gradient_descent(float learning_rate, float momentum);
-		~stochastic_gradient_descent();
+		//Constructor specifying the learning rate. Momentum defaults to 0
+		stochastic_gradient_descent(float learning_rate) : stochastic_gradient_descent(learning_rate, 0) {};
 
-		void optimise(trainable_function * t_func, int t_step) override;
+		//Constructor specifying the learning rate and the momentum
+		stochastic_gradient_descent(float learning_rate, float momentum);
+
+		//Destructor
+		~stochastic_gradient_descent() {};
+
+		//API FUNCTION
+		//Optimiser
+		//Called by the API to optimise the variables in the training functions after
+		//each training step.
+		void optimise() override;
 
 	private:
+		//constant value of the momentum added to each training stage
 		float momentum;
+
+		//constant value for the learning rate to scale the size of steps
+		//taken by the optimiser
 		float learning_rate;
 	};
 
-	class NN_LIB_API adam : public optimiser
+	//Adam Optimiser
+	//Optimises a network model using the Adam algorithm. The Adam algorithm is an 
+	//extension on SGD algorithm for training
+	class adam : public optimiser
 	{
 	public:
+		//Constructor specifying the learning rate. Decay parameters and epsilon offset have default values
+		//so do not need to be explicitly set
 		adam(double learning_rate, double beta1 = 0.9, double beta2 = 0.999, double epsilon = 1e-8);
-		~adam();
 
-		void optimise(trainable_function * t_func, int t_step) override;
+		//Destructor
+		~adam() {};
+
+		//API FUNCTION
+		//Optimiser
+		//Called by the API to optimise the variables in the training functions after
+		//each training step.
+		void optimise() override;
+
+		//API FUNCTION
+		//Initialise
+		//Initialise the optimiser by passing in the training functions it has to optimise
+		void initialise(vector<trainable_function*> t_funcs) override;
+
+		//API FUNCTION
+		//Uninitialise
+		//Uninitialise the optimiser
+		void uninitialise() override;
 
 	private:
+		//constant value for the learning rate to scale the size of steps
+		//taken by the optimiser
 		double learning_rate;
+
+		//decay rate for the momentum vector
 		double beta1;
+
+		//decay rate for the velocity vector
 		double beta2;
+
+		//small offset to avoid division by 0
 		double epsilon;
+
+		//vector of momentium placeholders for each trainable layer
+		vector<float*> momentum_ps;
+
+		//vector of velocity placeholders for each trainable layer
+		vector<float*> velocity_ps;
+
+		//step counter for decay
+		int __step = 0;
 	};
 }

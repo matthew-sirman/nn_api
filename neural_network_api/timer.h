@@ -1,34 +1,43 @@
 #pragma once
 
-/*
-#ifdef NEURALNETWORKAPI_EXPORTS
-#define NN_LIB_API __declspec(dllexport)
-#else
-#define NN_LIB_API __declspec(dllimport)
-#endif
-*/
-#define NN_LIB_API
-
 #include <stdio.h>
 #include <cuda.h>
 #include <cuda_runtime.h>
 
-class NN_LIB_API timer
+//Timer
+//This class can be used to time events. Call start() to begin timing
+//and stop() to end timing. Call elapsed() to get the time elapsed between
+//the two calls 
+class timer
 {
 public:
-	timer();
-	~timer();
+	//Default Constructor
+	timer() {};
 
+	//Destructor
+	~timer() {};
+
+	//Start
+	//Call this function to start timing
 	void start();
-	void stop();
-	void reset() { total_time = 0; }
 
+	//Start
+	//Call this function to stop timing
+	void stop();
+
+	//Elapsed
+	//Returns the elapsed time between starting and stopping
+	//the timer
 	float elapsed();
 
+	//Stamp
+	//Print a default timestamp message to the console
 	void stamp();
 private:
+	//cuda events representing the start and stop times
 	cudaEvent_t g_t1, g_t2;
 
+	//the total time between starting and stopping
 	float total_time = 0;
 };
 

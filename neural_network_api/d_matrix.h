@@ -1,14 +1,5 @@
 #pragma once
 
-/*
-#ifdef NEURALNETWORKAPI_EXPORTS
-#define NN_LIB_API __declspec(dllexport)
-#else
-#define NN_LIB_API __declspec(dllimport)
-#endif
-*/
-#define NN_LIB_API
-
 #include <cuda.h>
 #include <cuda_runtime.h>
 
@@ -16,113 +7,69 @@
 
 #include "util.h"
 
-enum NN_LIB_API order {
+//the order in which the matrix is indexed (column major or row major)
+enum order {
 	COL,
 	ROW
 };
 
+//Device Matrix
+//Declare a matrix of generic type T
+//Matrix of size N*M on device memory for
+//linear algebra operations
 template <typename T>
-struct NN_LIB_API __align__(8) d_matrix {
+struct __align__(8) d_matrix {
+	//N size (cols) of the matrix
+	//M size (rows) of the matrix
 	int n_size;
 	int m_size;
 
+	//array data
 	T * d_data;
 
+	//Default constructor 
 	inline d_matrix<T>() {};
 
+	//Constructor specifying N size M size and an array of data on
+	//the device
 	inline d_matrix<T>(int n_size, int m_size, T * d_data) {
 		this->n_size = n_size;
 		this->m_size = m_size;
 		this->d_data = d_data;
 	}
 
+	//Get
+	//Get the element at a given index
 	__host__ __device__ T get(int n, int m) const {
 		return d_data[m * n_size + n];
-		/*switch (o_T) {
-		case mat_order::ROW_MAJOR:
-			return d_data[m * n_size + n];
-		case mat_order::COLUMN_MAJOR:
-			return d_data[n * m_size + m];
-		default:
-			return T();
-		}*/
 	}
 
-	/*template <int w, int h, int b_w, int b_h>
-	__host__ __device__ void stream_copy(volatile T * buff, block<w, h> buff_block, block<w, h> mat_block) {
-		switch (o_T) {
-		case mat_order::ROW_MAJOR:
-			float4* f4_buff = reinterpret_cast<float4*>(buff);
-			float4* df_mat;
-
-			#pragma unroll
-			for (int load_m = 0; load_m < h; load_m++) {
-				df_mat = reinterpret_cast<float4*>(&d_data[((mat_block.y + load_m) * n_size) % 4 + (mat_block.x / 4)]);
-				#pragma unroll
-				for (int load_n = 0; load_n < w / 4; load_n++) {
-					f4_buff[((buff_block.y + load_m) * w + buff_block.x) / 4 + load_n] = df_mat[load_n];
-				}
-				#pragma unroll
-				for (int rem_load = 0; rem_load < w % 4; rem_load++) {
-
-				}
-			}
-			break;
-		case mat_order::COLUMN_MAJOR:
-			float4* f4_buff = reinterpret_cast<float4*>(buff);
-			float4* df_mat;
-
-			#pragma unroll
-			for (int load_m = 0; load_m < h; load_m++) {
-				df_mat = reinterpret_cast<float4*>(&d_data[((mat_block.y + load_m) * n_size) % 4 + (mat_block.x / 4)]);
-				#pragma unroll
-				for (int load_n = 0; load_n < w / 4; load_n++) {
-					f4_buff[((buff_block.y + load_m) * w + buff_block.x) / 4 + load_n] = df_mat[load_n];
-				}
-			}
-			break;
-		}
-	}*/
-
+	//Set
+	//Set the element at a given index
 	__host__ __device__ void set(int n, int m, T value) const {
 		d_data[m * n_size + n] = value;
-		/*switch (o_T) {
-		case mat_order::ROW_MAJOR:
-			d_data[m * n_size + n] = value;
-			break;
-		case mat_order::COLUMN_MAJOR:
-			d_data[n * m_size + m] = value;
-			break;
-		default:
-			break;
-		}*/
 	}
+
+	//Increment
+	//Increment a value at a given index by a value specified
 	__host__ __device__ void incr(int n, int m, T value) const {
 		d_data[m * n_size + n] += value;
-		/*switch (o_T) {
-		case mat_order::ROW_MAJOR:
-			d_data[m * n_size + n] += value;
-			break;
-		case mat_order::COLUMN_MAJOR:
-			d_data[n * m_size + m] += value;
-			break;
-		default:
-			break;
-		}*/
 	}
 };
 
-void cpy_f2_2d(float2 * dst, float * src, int n, int m);
-void cpy_f4_2d(float4 * dst, float * src, int n, int m);
-
+//Create Device Matrix
+//Template function to create a device matrix
 template <typename m_T>
-extern NN_LIB_API inline void create_device_matrix(d_matrix<m_T> &matrix, int n_size, int m_size, m_T * d_data) {
+inline void create_device_matrix(d_matrix<m_T> &matrix, int n_size, int m_size, m_T * d_data) {
+	//setup parameters of the matrix
 	matrix.n_size = n_size;
 	matrix.m_size = m_size;
 	matrix.d_data = d_data;
 }
 
-extern NN_LIB_API inline void create_f1_matrix(d_matrix<float1> * matrix, int n_size, int m_size, float * data) {
+//Create F1 Matrix
+//Create a matrix of floats from a host array
+inline void create_f1_matrix(d_matrix<float1> * matrix, int n_size, int m_size, float * data) {
 	matrix = new d_matrix<float1>();
 
 	matrix->n_size = n_size;
@@ -131,24 +78,4 @@ extern NN_LIB_API inline void create_f1_matrix(d_matrix<float1> * matrix, int n_
 	cuda_safe_call(cudaMallocManaged(&matrix->d_data, sizeof(float1) * n_size * m_size));
 
 	matrix->d_data = reinterpret_cast<float1*>(data);
-}
-
-extern NN_LIB_API inline void create_f2_matrix(d_matrix<float2> * matrix, int n_size, int m_size, float * data) {
-	matrix = new d_matrix<float2>();
-
-	matrix->n_size = ceil_div(2, n_size);
-	matrix->m_size = 2 * ceil_div(2, m_size);
-
-	cuda_safe_call(cudaMallocManaged(&matrix->d_data, sizeof(float2) * matrix->n_size * matrix->m_size));
-	cpy_f2_2d(matrix->d_data, data, n_size, m_size);
-}
-
-extern NN_LIB_API inline void create_f4_matrix(d_matrix<float4> * matrix, int n_size, int m_size, float * data) {
-	matrix = new d_matrix<float4>();
-
-	matrix->n_size = ceil_div(4, n_size);
-	matrix->m_size = 4 * ceil_div(4, m_size);
-
-	cuda_safe_call(cudaMallocManaged(&matrix->d_data, sizeof(float4) * matrix->n_size * matrix->m_size));
-	cpy_f4_2d(matrix->d_data, data, n_size, m_size);
 }

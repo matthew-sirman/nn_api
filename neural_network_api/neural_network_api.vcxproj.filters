@@ -128,9 +128,6 @@
     <ClCompile Include="heirarchy_image_loader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="variable_initialiser.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="conv_ops_2d.cu">
@@ -140,9 +137,6 @@
       <Filter>Source Files</Filter>
     </CudaCompile>
     <CudaCompile Include="instructions_kernel.cu">
-      <Filter>Source Files</Filter>
-    </CudaCompile>
-    <CudaCompile Include="linear_algebra_ops.cu">
       <Filter>Source Files</Filter>
     </CudaCompile>
     <CudaCompile Include="optimiser_kernel.cu">

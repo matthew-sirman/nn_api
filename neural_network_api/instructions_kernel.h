@@ -1,21 +1,11 @@
 #pragma once
 
-/*
-#ifdef NEURALNETWORKAPI_EXPORTS
-#define NN_LIB_API __declspec(dllexport)
-#else
-#define NN_LIB_API __declspec(dllimport)
-#endif
-*/
-#define NN_LIB_API
-
 #include <conio.h>
 #include <algorithm>
 
 #include <stdio.h>
 #include <stdexcept>
 #include <time.h>
-//#include <math.h>
 #include <curand.h>
 #include <vector>
 
@@ -25,78 +15,145 @@
 
 using namespace std;
 
-/*#define cuda_safe_call(err) __cuda_safe_call(err, __FILE__, __LINE__)
+//define a new datatype to represent a byte (which is the same as a single unsigned char)
 
-inline void __cuda_safe_call(cudaError error, char *file, int line, bool abort=true) {
-	if (error != cudaSuccess) {
-		printf("cuda_safe_call failed in file %s on line %d with error %s\n", file, line, cudaGetErrorString(error));
-		if (abort)
-			exit(error);
-	}
-}*/
-
-constexpr auto MATMUL_BLOCK_SIZE = 64;
-constexpr auto MATMUL_BLOCK_SIZEx2 = 128;
-constexpr auto MAT_ROWS_PER_THREAD = 8;
-constexpr auto INPUT_CHUNK_SIZE = 8;
-constexpr auto WEIGHT_LOAD_SIZE = 1;
-constexpr auto OUTPUTS_PER_THREAD = 1;
-constexpr auto AVERAGE_CHUNK_SIZE = 16;
-constexpr auto M_TILE_SIZE_X = 64;
-constexpr auto M_TILE_SIZE_Y = 16;
-
+//Byte
+//1 unsigned byte in memory
 typedef unsigned char byte;
 
+//device functions
+
+//API FUNCTION
+//Reduce the last warp to a single value with parallel reduction
 template <unsigned int block_size>
 __device__ void warp_reduce(volatile float * s_cost, int tid);
+
+//API FUNCTION
+//Reduce the last warp to a single value with parallel reduction,
+//where an offset array is provided
 template <unsigned int block_size>
 __device__ void warp_reduce_to_zero(volatile float * s_cost);
 
-void allocate_device_pointer(float ** d_pointer, int size);
-void deallocate_device_pointer(float * d_pointer);
+//API FUNCTION
+//Allocate a float pointer with the given size
+void allocate_device_float_pointer(float ** d_pointer, size_t size);
 
-void load_data_into_device(float * input_data, float * d_data_p, int size);
-void retrieve_output_data(float * output_data, float * d_data_p, int size);
-void copy_into_device_array(float * input_data, float * d_data_p, int size, int offset);
-void copy_staggered_into_device_array(float * input_data, float * d_data_pointer, int in_dat_size, int out_dat_size, int num);
+//API FUNCTION
+//Deallocate a float pointer
+void deallocate_device_float_pointer(float * d_pointer);
 
+//API FUNCTION
+//Copies a host array into the device array with a specified pointer
+void load_data_into_device(float * input_data, float * d_data_p, size_t size);
+
+//API FUNCTION
+//Copies a device array into the host array with a specified pointer
+void retrieve_output_data(float * output_data, float * d_data_p, size_t size);
+
+//API FUNCTION
+//Copies a device array into another device array with a specified pointer
+void copy_into_device_array(float * input_data, float * d_data_p, size_t size, size_t offset);
+
+//API FUNCTION
+//Gets a pseudorandom number generator with the specified seed
 void get_prng(curandGenerator_t * prng, int seed);
+
+//API FUNCTION
+//Gets an array of scaled and offset random numbers
 void random_host_array(curandGenerator_t prng, float * array_p, float scale, float offset, size_t size);
+
+//API FUNCTION
+//Gets an array of normally distributed random numbers
 void random_normal_array(curandGenerator_t prng, float * array_p, float mean, float stddev, size_t size);
-//void fill_array(float * array_p, float value, int size);
-void fill_device_array(float * d_array_p, float value, int size);
 
+//API FUNCTION
+//Fills an array on the device with the specfied value
+void fill_device_array(float * d_array_p, float value, size_t size);
+
+//API FUNCTION
+//Adds a bias vector to each of the inputs
 void add_matrices(float * d_input_p, float * d_out, float * d_bias_p, int size, int num);
-//void multiply_matrices(float * d_input_p, float * d_out, float * d_partial_outputs, float * d_weights_p, int rows, int cols, int num);
-void multiply_matrices(float * d_A, float * d_B, float * d_partial_outputs, float * d_out, int A_rows, int A_cols, int B_rows, int B_cols);
-void multiply_staggered(float * d_input_p, float * d_out, float * d_partial_outputs, float * d_mul_mat, int rows, int cols, int stagger_size, int num);
-void apply_relu(float * d_input_p, float * d_output_p, int size, float alpha);
-void apply_tanh(float * d_input_p, float * d_output_p, int size);
-void apply_sigmoid(float * d_input_p, float * d_output_p, int size);
-void apply_softmax(float * d_input_p, float * d_output_p, int input_size, int num, float beta);
-void relu_derivative(float * d_input_p, float * d_output_p, int size, float alpha);
-void tanh_derivative(float * d_input_p, float * d_output_p, int size);
-void sigmoid_derivative(float * d_input_p, float * d_output_p, int size);
-//void softmax_derivative(float * d_input_p, float * d_output_p, int size, float beta);
 
+//API FUNCTION
+//Applies the ReLU activation function over each element of the input
+void apply_relu(float * d_input_p, float * d_output_p, int size, float alpha);
+
+//API FUNCTION
+//Applies the Tanh activation function over each element of the input
+void apply_tanh(float * d_input_p, float * d_output_p, int size);
+
+//API FUNCTION
+//Applies the Sigmoid activation function over each element of the input
+void apply_sigmoid(float * d_input_p, float * d_output_p, int size);
+
+//API FUNCTION
+//Applies the Softmax function over the input
+void apply_softmax(float * d_input_p, float * d_output_p, int input_size, int num, float beta);
+
+//API FUNCTION
+//Applies the ReLU derivative function over each element of the input
+void relu_derivative(float * d_input_p, float * d_output_p, int size, float alpha);
+
+//API FUNCTION
+//Applies the Tanh derivative function over each element of the input
+void tanh_derivative(float * d_input_p, float * d_output_p, int size);
+
+//API FUNCTION
+//Applies the Sigmoid derivative function over each element of the input
+void sigmoid_derivative(float * d_input_p, float * d_output_p, int size);
+
+//NOT IMPLEMENTED
+//API FUNCTION
+//Normalises the batch to centralise the mean and bring the standard
+//deviation to 1
 void batch_norm(float * d_input_p, float * d_output_p, int size, int num);
+
+//NOT IMPLEMENTED
+//API FUNCTION
+//Calculates the derivative of the batch normalisation pass
 void batch_norm_derivative(float * d_input_p, float * d_output_p, int size, int num);
 
+//API FUNCTION
+//Applies the Hadamard product to the two arrays, which performs elementwise multiplication
 void hadamard_product(float * d_a, float * d_b, float * d_output_p, int in_size);
+
+//API FUNCTION
+//Transposes a matrix
 void transpose(float * d_matrix_p, float * d_output_p, int rows, int cols);
-//void distributive_hadamard_transpose(float * d_input_p, float * d_matrix_p, float * d_output_p, int mat_rows, int mat_colse, int cols, int vector_size, int num);
 
+//API FUNCTION
+//Calculates the average vector from a matrix
 void average_vector(float * d_matrix, float * d_output_p, int size, int num, int divisor);
-void scalar_matrix_multiply_f(float * d_matrix, float * d_output_p, float scalar, int size);
-extern NN_LIB_API void scalar_matrix_multiply_b(byte * d_matrix, float * d_output_p, float scalar, int size);
 
+//API FUNCTION
+//Multiplies a float matrix by a scalar
+void scalar_matrix_multiply_f(float * d_matrix, float * d_output_p, float scalar, int size);
+
+//API FUNCTION
+//Multiplies a byte matrix by a scalar
+void scalar_matrix_multiply_b(byte * d_matrix, float * d_output_p, float scalar, int size);
+
+//API FUNCTION
+//Calculates the true mean of a vector
 void average_value(float * d_input_p, float * average, int size);
+
+//API FUNCTION
+//Calculates the partial mean of a vector by specifying a different divisor
+//from the size
 void average_value(float * d_input_p, float * average, int size, float divisor);
 
-void subtract_partial_derivatives(float * d_matrix, float * d_derivatives, int size, float learning_rate);
-
+//API FUNCTION
+//Calculates the mean squared error cost between the two distributions
 void squared_error_cost(float * d_input_p, float * d_target_p, float * d_output_p, int size);
+
+//API FUNCTION
+//Calculates the derivative of the mean squared error between the distributions
 void squared_error_cost_derivative(float * d_input_p, float * d_target_p, float * d_output_p, int size);
 
+//API FUNCTION
+//Calculates the cross entropy cost between the two distributions
 void softmax_cross_entropy_cost(float * d_input_p, float * d_target_p, float * d_output_p, int size, int num);
+
+//API FUNCTION
+//Calculates the derivative of the cross entropy between the distributions
 void softmax_cross_entropy_derivative(float * d_input_p, float * d_target_p, float * d_output_p, int size, int num);
