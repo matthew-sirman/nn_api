@@ -2,7 +2,7 @@
 
 #include <conio.h>
 #include <algorithm>
-
+#include <thrust\uninitialized_fill.h>
 #include <stdio.h>
 #include <stdexcept>
 #include <time.h>
@@ -157,3 +157,20 @@ void softmax_cross_entropy_cost(float * d_input_p, float * d_target_p, float * d
 //API FUNCTION
 //Calculates the derivative of the cross entropy between the distributions
 void softmax_cross_entropy_derivative(float * d_input_p, float * d_target_p, float * d_output_p, int size, int num);
+
+//API FUNCTION
+//Returns an array of the indices of the maximum values for each input in the input array
+void argmax(float * d_input, int * d_output, size_t input_size, size_t num);
+
+//API FUNCTION
+//Returns an array of the indices of the maximum values for each input in the input array, as well as
+//another array of the maximum values themselvs
+void argmax(float * d_input, float * d_max_vals, int * d_output, size_t input_size, size_t num);
+
+//API FUNCTION
+//Get the total number of equal elements in the arrays A and B
+void comp_eq(int * a, int * b, unsigned int * res, size_t size);
+
+//API FUNCTION
+//Get the total number of equal elements in the arrays A and B
+void comp_eq(int * a, float * b, unsigned int * res, size_t size);

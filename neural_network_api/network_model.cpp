@@ -635,14 +635,20 @@ namespace nn {
 		//get the shape of the input to the model
 		shape input_shape = layer_shapes[0];
 
-		//int to hold the number of correctly classified stimuli
-		int total_correct = 0;
-
 		//calculate the number of batches depending on the number of inputs and the batch size
 		int n_batches = ceil(num / (float)batch_size);
 
 		//begin with the current batch size being the primary batch size
 		size_t current_batch_size = batch_size;
+
+		//create a device int to hold the total number of correct results
+		unsigned int * d_total_correct;
+
+		//declare the correct pointer
+		cuda_safe_call(cudaMallocManaged(&d_total_correct, sizeof(int)));
+
+		//set the value to 0
+		cuda_safe_call(cudaMemset(d_total_correct, 0, sizeof(int)));
 
 		//loop through each batch
 		for (int batch = 0; batch < n_batches; batch++) {
@@ -676,37 +682,40 @@ namespace nn {
 			}
 
 			//calculate no. correct values
-			
-			//maybe change in future to run entirely on the device?
 
-			//declare a host pointer for the network output
-			float * out_vals = (float *)malloc(sizeof(float) * current_batch_size * output_shape.size());
+			//declare a pointer for the argmax result of the output layer
+			int * d_out_argmax;
 
-			//copy the output to the host
-			cuda_safe_call(cudaMemcpy(out_vals, d_out_layer, sizeof(float) * current_batch_size * output_shape.size(), cudaMemcpyDeviceToHost));
+			//allocate memory
+			cuda_safe_call(cudaMallocManaged(&d_out_argmax, sizeof(int) * current_batch_size));
 
-			//declare a host pointer for the expected labels (in sparse encoding)
-			float * batch_labels = (float *)malloc(sizeof(float) * current_batch_size);
+			//get the argmax for each output
+			argmax(d_out_layer, d_out_argmax, output_shape.size(), current_batch_size);
 
-			//copy the expected labels to the host
-			cuda_safe_call(cudaMemcpy(batch_labels, &test_y.get_dev_pointer()[batch * batch_size], sizeof(float) * current_batch_size, cudaMemcpyDeviceToHost));
+			//if the test has 1 dimension, it is sparse encoded, else it is one hot encoded
+			if (test_y.get_dimensions() == 1) {
+				//compare the test pointer directly to the output pointer and accumulate results
+				comp_eq(d_out_argmax, test_y.get_dev_pointer(), d_total_correct, current_batch_size);
+			}
+			else if (test_y.get_dimensions() == 2) {
+				//declare a pointer for the argmax of the one hot tensor
+				int * d_label_argmax;
 
-			//loop through each output
-			for (int res = 0; res < current_batch_size; res++) {
-				//get the start pointer of this output
-				float * start = &out_vals[res * output_shape.size()];
+				//allocate memory for the argmax vector
+				cuda_safe_call(cudaMallocManaged(&d_label_argmax, sizeof(int) * current_batch_size));
 
-				//get the end pointer of this output
-				float * end = start + output_shape.size();
+				//get the argmax for each label
+				argmax(test_y.get_dev_pointer(), d_label_argmax, output_shape.size(), current_batch_size);
 
-				//get the distance from the start to the maximum element (which gives the maximum index, so argmax)
-				int res_argmax = distance(start, max_element(start, end));
-
-				//if the maximum argument is equal to the label, increment the total correct counter
-				if (res_argmax == batch_labels[res])
-					total_correct++;
+				//compare the test pointer to the output pointer and accumulate results
+				comp_eq(d_out_argmax, d_label_argmax, d_total_correct, current_batch_size);
 			}
 		}
+
+		//int to hold the number of correctly classified stimuli
+		int total_correct;
+
+		cuda_safe_call(cudaMemcpy(&total_correct, d_total_correct, sizeof(int), cudaMemcpyDeviceToHost));
 
 		//return the total correct divided by the total number to give the the percentage of
 		//correctly classified elements
@@ -731,14 +740,20 @@ namespace nn {
 		//get the number of inputs, which is known by the iterator
 		size_t num = b_iter.get_size();
 
-		//int to hold the number of correctly classified stimuli
-		int total_correct = 0;
-
 		//calculate the number of batches depending on the number of inputs and the batch size
 		int n_batches = ceil(num / (float)batch_size);
 
 		//begin with the current batch size being the primary batch size
 		size_t current_batch_size = batch_size;
+
+		//create a device int to hold the total number of correct results
+		unsigned int * d_total_correct;
+
+		//declare the correct pointer
+		cuda_safe_call(cudaMallocManaged(&d_total_correct, sizeof(int)));
+
+		//set the value to 0
+		cuda_safe_call(cudaMemset(d_total_correct, 0, sizeof(int)));
 
 		//loop through each batch
 		for (int batch = 0; batch < n_batches; batch++) {
@@ -776,36 +791,41 @@ namespace nn {
 
 			//calculate no. correct values
 
-			//maybe change in future to run entirely on the device?
+			//declare a pointer for the argmax result of the output layer
+			int * d_out_argmax;
 
-			//declare a host pointer for the network output
-			float * out_vals = (float *)malloc(sizeof(float) * current_batch_size * output_shape.size());
+			//allocate memory
+			cuda_safe_call(cudaMallocManaged(&d_out_argmax, sizeof(int) * current_batch_size));
 
-			//copy the output to the host
-			cuda_safe_call(cudaMemcpy(out_vals, d_out_layer, sizeof(float) * current_batch_size * output_shape.size(), cudaMemcpyDeviceToHost));
+			//get the argmax for each output
+			argmax(d_out_layer, d_out_argmax, output_shape.size(), current_batch_size);
 
-			//declare a host pointer for the expected labels (in sparse encoding)
-			float * batch_labels = (float *)malloc(sizeof(float) * current_batch_size);
+			tensor test_y = *b_iter.get_next_batch_labels();
 
-			//copy the expected labels to the host
-			cuda_safe_call(cudaMemcpy(batch_labels, b_iter.get_next_batch_labels()->get_dev_pointer(), sizeof(float) * current_batch_size, cudaMemcpyDeviceToHost));
+			//if the test has 1 dimension, it is sparse encoded, else it is one hot encoded
+			if (test_y.get_dimensions() == 1) {
+				//compare the test pointer directly to the output pointer and accumulate results
+				comp_eq(d_out_argmax, test_y.get_dev_pointer(), d_total_correct, current_batch_size);
+			}
+			else if (test_y.get_dimensions() == 2) {
+				//declare a pointer for the argmax of the one hot tensor
+				int * d_label_argmax;
 
-			//loop through each output
-			for (int res = 0; res < current_batch_size; res++) {
-				//get the start pointer of this output
-				float * start = &out_vals[res * output_shape.size()];
+				//allocate memory for the argmax vector
+				cuda_safe_call(cudaMallocManaged(&d_label_argmax, sizeof(int) * current_batch_size));
 
-				//get the end pointer of this output
-				float * end = start + output_shape.size();
+				//get the argmax for each label
+				argmax(test_y.get_dev_pointer(), d_label_argmax, output_shape.size(), current_batch_size);
 
-				//get the distance from the start to the maximum element (which gives the maximum index, so argmax)
-				int res_argmax = distance(start, max_element(start, end));
-
-				//if the maximum argument is equal to the label, increment the total correct counter
-				if (res_argmax == batch_labels[res])
-					total_correct++;
+				//compare the test pointer to the output pointer and accumulate results
+				comp_eq(d_out_argmax, d_label_argmax, d_total_correct, current_batch_size);
 			}
 		}
+
+		//int to hold the number of correctly classified stimuli
+		int total_correct;
+
+		cuda_safe_call(cudaMemcpy(&total_correct, d_total_correct, sizeof(int), cudaMemcpyDeviceToHost));
 
 		//return the total correct divided by the total number to give the the percentage of
 		//correctly classified elements

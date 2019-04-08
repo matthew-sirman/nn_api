@@ -737,6 +737,185 @@ __global__ void d_softmax_cross_entropy_derivative(float *input, float *target, 
 	}
 }
 
+//kernel to calculate the argmax for each input in the input vector
+__global__ void d_argmax(float * input, float * max_vals, int * output, int input_size) {
+	//declare shared memory to hold each value
+	__shared__ float s_values[BLOCK_SIZE * 2];
+	__shared__ int s_indices[BLOCK_SIZE * 2];
+
+	//get the id of this thread
+	int tid = threadIdx.x;
+
+	//get the offset for this input block
+	int input_block = blockIdx.x * BLOCK_SIZE;
+
+	//get the current element
+	int element_id = blockIdx.y;
+
+	//check which ids are in range and load corresponding
+	//values from global memory
+	if (tid + input_block +BLOCK_SIZE < input_size) {
+		s_values[tid + BLOCK_SIZE] = input[input_size * element_id + input_block + tid + BLOCK_SIZE];
+		s_values[tid] = input[input_size * element_id + input_block + tid];
+	}
+	else if (tid + input_block < input_size) {
+		s_values[tid + BLOCK_SIZE] = FLOAT_MIN;
+		s_values[tid] = input[input_size * element_id + input_block + tid];
+	}
+	else {
+		s_values[tid + BLOCK_SIZE] = FLOAT_MIN;
+		s_values[tid] = FLOAT_MIN;
+	}
+
+	s_indices[tid + BLOCK_SIZE] = input_block + tid + BLOCK_SIZE;
+	s_indices[tid] = input_block + tid;
+
+	//synchronise threads to complete loading
+	cuda_syncthreads();
+
+	//use parallel reduction to reduce the array, but instead of summing, compare the values and save the
+	//maximum. This will result in the highest value being stored in the first index. A simultaneos array of
+	//the corresponding indices is reduces alongside, so at each stage the indices array and values array will
+	//correspond to each other. This means the argmax will be the first index of the indices array
+	if (BLOCK_SIZE >= 1024) {
+		if (tid < 1024) {
+			if (s_values[tid + 1024] > s_values[tid]) {
+				s_values[tid] = s_values[tid + 1024];
+				s_indices[tid] = s_indices[tid + 1024];
+			}
+		}
+		cuda_syncthreads();
+	}
+	if (BLOCK_SIZE >= 512) {
+		if (tid < 512) {
+			if (s_values[tid + 512] > s_values[tid]) {
+				s_values[tid] = s_values[tid + 512];
+				s_indices[tid] = s_indices[tid + 512];
+			}
+		}
+		cuda_syncthreads();
+	}
+	if (BLOCK_SIZE >= 256) {
+		if (tid < 256) {
+			if (s_values[tid + 256] > s_values[tid]) {
+				s_values[tid] = s_values[tid + 256];
+				s_indices[tid] = s_indices[tid + 256];
+			}
+		}
+		cuda_syncthreads();
+	}
+	if (BLOCK_SIZE >= 128) {
+		if (tid < 128) {
+			if (s_values[tid + 128] > s_values[tid]) {
+				s_values[tid] = s_values[tid + 128];
+				s_indices[tid] = s_indices[tid + 128];
+			}
+		}
+		cuda_syncthreads();
+	}
+	if (BLOCK_SIZE >= 64) {
+		if (tid < 64) {
+			if (s_values[tid + 64] > s_values[tid]) {
+				s_values[tid] = s_values[tid + 64];
+				s_indices[tid] = s_indices[tid + 64];
+			}
+		}
+		cuda_syncthreads();
+	}
+	if (BLOCK_SIZE >= 32) {
+		if (tid < 32) {
+			if (s_values[tid + 32] > s_values[tid]) {
+				s_values[tid] = s_values[tid + 32];
+				s_indices[tid] = s_indices[tid + 32];
+			}
+		}
+		cuda_syncthreads();
+	}
+	if (BLOCK_SIZE >= 16) {
+		if (tid < 16) {
+			if (s_values[tid + 16] > s_values[tid]) {
+				s_values[tid] = s_values[tid + 16];
+				s_indices[tid] = s_indices[tid + 16];
+			}
+		}
+		cuda_syncthreads();
+	}
+	if (BLOCK_SIZE >= 8) {
+		if (tid < 8) {
+			if (s_values[tid + 8] > s_values[tid]) {
+				s_values[tid] = s_values[tid + 8];
+				s_indices[tid] = s_indices[tid + 8];
+			}
+		}
+		cuda_syncthreads();
+	}
+	if (BLOCK_SIZE >= 4) {
+		if (tid < 4) {
+			if (s_values[tid + 4] > s_values[tid]) {
+				s_values[tid] = s_values[tid + 4];
+				s_indices[tid] = s_indices[tid + 4];
+			}
+		}
+		cuda_syncthreads();
+	}
+	if (BLOCK_SIZE >= 2) {
+		if (tid < 2) {
+			if (s_values[tid + 2] > s_values[tid]) {
+				s_values[tid] = s_values[tid + 2];
+				s_indices[tid] = s_indices[tid + 2];
+			}
+		}
+		cuda_syncthreads();
+	}
+	if (BLOCK_SIZE >= 1) {
+		if (tid < 1) {
+			if (s_values[tid + 1] > s_values[tid]) {
+				s_values[tid] = s_values[tid + 1];
+				s_indices[tid] = s_indices[tid + 1];
+			}
+		}
+		cuda_syncthreads();
+	}
+
+	//if this is the last thread...
+	if (tid == 0) {
+		//if the new max is greater than the old max, write the new max value
+		//and its index out
+		if (max_vals[element_id] < s_values[0]) {
+			max_vals[element_id] = s_values[0];
+			output[element_id] = s_indices[0];
+		}
+	}
+}
+
+//kernel to calculate the number of equal elements between two arrays of integers
+__global__ void d_comp_eq(int * a, int * b, unsigned int * res, size_t size) {
+	//get the id
+	int tid = threadIdx.x + blockIdx.x * BLOCK_SIZE;
+
+	//check the id is in range
+	if (tid < size) {
+		//if the elements are equal increment the counter
+		if (a[tid] == b[tid]) {
+			atomic_add(res, 1);
+		}
+	}
+}
+
+//kernel to calculate the number of equal elements between two arrays of integers
+__global__ void d_comp_eq(int * a, float * b, unsigned int * res, size_t size) {
+	//get the id
+	int tid = threadIdx.x + blockIdx.x * BLOCK_SIZE;
+
+	//check the id is in range
+	if (tid < size) {
+		//if the elements are equal increment the counter
+		if (a[tid] == b[tid]) {
+			atomic_add(res, 1);
+		}
+	}
+}
+
 template <unsigned int block_size>
 __device__ void warp_reduce(volatile float *s_pr_array, int tid) {
 	//reduce last warp with an offset without synchronising as #
@@ -1340,4 +1519,55 @@ void softmax_cross_entropy_derivative(float * d_input_p, float * d_target_p, flo
 	}
 	//launch the softmax cross entropy derivative kernel
 	d_softmax_cross_entropy_derivative<<<blocks_per_grid, threads_per_block>>>(d_input_p, d_target_p, d_output_p, size);
+}
+
+void argmax(float * d_input, int * d_output, size_t input_size, size_t num)
+{
+	float * d_max_vals;
+
+	cuda_safe_call(cudaMallocManaged(&d_max_vals, sizeof(float) * num));
+
+	argmax(d_input, d_max_vals, d_output, input_size, num);
+
+	cuda_safe_call(cudaFree(d_max_vals));
+}
+
+void argmax(float * d_input, float * d_max_vals, int * d_output, size_t input_size, size_t num)
+{
+	//fill the array with the minimum value a float can hold to initialise
+	fill_device_array(d_max_vals, FLOAT_MIN, num);
+
+	//setup block and grid sizes
+	dim3 threads_per_block(BLOCK_SIZE, 1);
+	dim3 blocks_per_grid(ceil_div(BLOCK_SIZE * 2, input_size), num);
+	//launch the argmax kernel
+	d_argmax<<<blocks_per_grid, threads_per_block>>>(d_input, d_max_vals, d_output, input_size);
+}
+
+void comp_eq(int * a, int * b, unsigned int * res, size_t size)
+{
+	//setup block and grid sizes
+	dim3 threads_per_block(size);
+	dim3 blocks_per_grid(1);
+	//handle thread overflow
+	if (size > BLOCK_SIZE) {
+		threads_per_block.x = BLOCK_SIZE;
+		blocks_per_grid.x = ceil_div(BLOCK_SIZE, size);
+	}
+	//launch the comparison equal kernel
+	d_comp_eq<<<blocks_per_grid, threads_per_block>>>(a, b, res, size);
+}
+
+void comp_eq(int * a, float * b, unsigned int * res, size_t size)
+{
+	//setup block and grid sizes
+	dim3 threads_per_block(size);
+	dim3 blocks_per_grid(1);
+	//handle thread overflow
+	if (size > BLOCK_SIZE) {
+		threads_per_block.x = BLOCK_SIZE;
+		blocks_per_grid.x = ceil_div(BLOCK_SIZE, size);
+	}
+	//launch the comparison equal kernel
+	d_comp_eq<<<blocks_per_grid, threads_per_block>>>(a, b, res, size);
 }

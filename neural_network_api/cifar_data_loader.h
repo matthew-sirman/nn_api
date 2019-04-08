@@ -21,7 +21,7 @@ using namespace boost::filesystem;
 //Cifar Dataset
 //Specifies which CIFAR style dataset to use as defaults. The loader isn't necessarily exclusive to these
 //types, however support for other datasets is not necessarily available
-enum NN_LIB_API cifar_dataset {
+enum cifar_dataset {
 	CIFAR_10,
 	CIFAR_100_F,
 	CIFAR_100_C

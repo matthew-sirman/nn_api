@@ -70,8 +70,14 @@ namespace nn {
 
 	void squared_error::cost_derivative(float * input, float * y, size_t batch_size)
 	{
+		//initialise the derivative vector to 0
+		cuda_safe_call(cudaMemset(d_der_vector, 0, sizeof(float) * input_shape.size() * batch_size));
+
 		//get the derivative between the distributions
 		squared_error_cost_derivative(input, y, d_der_vector, input_shape.size() * batch_size);
+
+		//average the derivative at this point to prevent explosions and save on computations
+		scalar_matrix_multiply_f(d_der_vector, d_der_vector, 1.0 / batch_size, input_shape.size() * batch_size);
 	}
 
 	void softmax_cross_entropy::cost(float * input, float * y, size_t batch_size)

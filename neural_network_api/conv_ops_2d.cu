@@ -646,9 +646,9 @@ __global__ void d_pool_2d(
 					s_block[s_load_id] = input[g_load_id];
 				}
 				else {
-					//if the element is outside of range load a large negative number instead 
+					//if the element is outside of range load the minimum negative number instead 
 					//so that it doesn't get chosen by the max pool
-					s_block[s_load_id] = -99999;
+					s_block[s_load_id] = FLOAT_MIN;
 				}
 			}
 		}
@@ -669,8 +669,8 @@ __global__ void d_pool_2d(
 				//indices of the current stride for this thread
 				int stride_index_n = n_id * POOL_THREAD_BLOCK_N + stride_n;
 				int stride_index_m = m_id * POOL_THREAD_BLOCK_M + stride_m;
-				//initialise the max value to a large negative number (such that each pool value should be larger)
-				float tmp_max = -99999;
+				//initialise the max value to the minimum negative number (such that each pool value should be larger)
+				float tmp_max = FLOAT_MIN;
 				//cache indices of the greatest element for masking
 				int n_index = stride_index_n;
 				int m_index = stride_index_m;

@@ -1,15 +1,17 @@
 #pragma once
 
 //define macros for thread syncing, warp syncing
-//and atomic addition
+//and atomics for addition and max
 #ifdef __CUDACC__
 #define cuda_syncthreads() __syncthreads()
 #define cuda_syncwarp() __syncwarp()
 #define atomic_add(arr, val) atomicAdd(arr, val)
+#define atomic_max(o, n) atomicMax(o, n)
 #else
 #define cuda_syncthreads()
 #define cuda_syncwarp()
 #define atomic_add(arr, val)
+#define atomic_max(o, n)
 #endif
 
 #include <cuda.h>
@@ -36,6 +38,10 @@ constexpr auto SOFTMAX_MAX_CLASSES = 2048;
 //MAX_BATCH_SIZE
 //The largest batch size kernels can handle
 constexpr auto MAX_BATCH_SIZE = 2048;
+
+//FLOAT_MIN
+//The smallest value a float can hold
+constexpr float FLOAT_MIN = -3.402823566e38;
 
 //Cuda Safe Call
 //Macro for capturing and handling exceptions raised by Cuda
