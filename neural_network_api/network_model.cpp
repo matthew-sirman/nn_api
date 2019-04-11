@@ -3,7 +3,7 @@
 #include "network_model.h"
 
 
-namespace nn {
+namespace nnet {
 	void network_model::entry(shape entry_shape)
 	{
 		//set the current layer shape to the entry shape
@@ -13,23 +13,25 @@ namespace nn {
 		__ent_spec = true;
 	}
 
-	void network_model::add(tensor biases)
+	add_function* network_model::add(tensor biases)
 	{
 		//check that the entry shape is specified
 		if (!__ent_spec)
 			throw exception("Entry size not specified");
 
 		//create an add function
-		add_function * f = new add_function(biases);
+		add_function* f = new add_function(biases);
 
 		//push the function into the instruction function list
 		instructions.push_back(f);
 
 		//push it to trainable functions as add functions are trainable
 		train_funcs.push_back(f);
+
+		return f;
 	}
 
-	void network_model::matmul(tensor weights)
+	matmul_function* network_model::matmul(tensor weights)
 	{
 		//check that the entry shape is specified
 		if (!__ent_spec)
@@ -40,7 +42,7 @@ namespace nn {
 			throw exception("Weight tensor must be two dimensional");
 
 		//create a matmul function
-		matmul_function * f = new matmul_function(weights);
+		matmul_function* f = new matmul_function(weights);
 
 		//push the function into the instruction function list
 		instructions.push_back(f);
@@ -50,9 +52,11 @@ namespace nn {
 
 		//set the shape of the next layer to be the output shape from the matrix
 		this->init_layer_shape = shape(weights.get_shape()[0]);
+
+		return f;
 	}
 
-	void network_model::dense(size_t units, variable_initialiser weight_initialiser, variable_initialiser bias_initialiser) {
+	dense_layer network_model::dense(size_t units, variable_initialiser weight_initialiser, variable_initialiser bias_initialiser) {
 		//check that the entry shape is specified
 		if (!__ent_spec)
 			throw exception("Entry size not specified");
@@ -64,34 +68,34 @@ namespace nn {
 		tensor biases = tensor::random_normal(units, weight_initialiser.mean, weight_initialiser.stddev);
 
 		//add a matmul layer
-		matmul(weights);
+		matmul_function* m = matmul(weights);
 
 		//add a bias layer
-		add(biases);
+		add_function* a = add(biases);
 
 		//set the next layer shape to be the output shape
 		init_layer_shape = shape(units);
+
+		return dense_layer(a, m);
 	}
 
-	void network_model::conv2d(shape filter_shape, size_t n_filters, padding_type padding, variable_initialiser initialiser)
+	conv2d_function* network_model::conv2d(shape filter_shape, size_t n_filters, padding_type padding, variable_initialiser initialiser)
 	{
 		//check that the entry shape is specified
 		if (!__ent_spec)
 			throw exception("Entry size not specified");
 
 		switch (padding) {
-		case padding_type::VALID:
+		case padding_type::PADDING_VALID:
 			//if the padding is valid, create a conv2d with no padding
-			conv2d(filter_shape, n_filters, shape(0, 0), initialiser);
-			break;
-		case padding_type::SAME:
+			return conv2d(filter_shape, n_filters, shape(0, 0), initialiser);
+		case padding_type::PADDING_SAME:
 			//if the padding is same, work out the padding size
-			conv2d(filter_shape, n_filters, shape((filter_shape.width - 1) / 2, (filter_shape.height - 1) / 2), initialiser);
-			break;
+			return conv2d(filter_shape, n_filters, shape((filter_shape.width - 1) / 2, (filter_shape.height - 1) / 2), initialiser);
 		}
 	}
 
-	void network_model::conv2d(shape filter_shape, size_t n_filters, shape padding, variable_initialiser initialiser)
+	conv2d_function* network_model::conv2d(shape filter_shape, size_t n_filters, shape padding, variable_initialiser initialiser)
 	{
 		//check that the entry shape is specified
 		if (!__ent_spec)
@@ -106,10 +110,10 @@ namespace nn {
 		tensor filter = tensor::random_normal({ filter_shape.width, filter_shape.height, f_depth, n_filters }, initialiser.mean, initialiser.stddev);
 
 		//call the next level
-		conv2d(filter, padding);
+		return conv2d(filter, padding);
 	}
 
-	void network_model::conv2d(tensor filter, shape padding)
+	conv2d_function* network_model::conv2d(tensor filter, shape padding)
 	{
 		//check that the entry shape is specified
 		if (!__ent_spec)
@@ -134,9 +138,11 @@ namespace nn {
 		
 		//set the next layer shape to be the output shape
 		init_layer_shape = f->output_shape;
+
+		return f;
 	}
 
-	void network_model::max_pool(shape pool_size, shape stride)
+	max_pool_function* network_model::max_pool(shape pool_size, shape stride)
 	{
 		//check that the entry shape is specified
 		if (!__ent_spec)
@@ -154,9 +160,11 @@ namespace nn {
 
 		//set the next layer shape to be the output shape
 		init_layer_shape = f->output_shape;
+
+		return f;
 	}
 
-	void network_model::flatten()
+	flatten_function* network_model::flatten()
 	{
 		//check that the entry shape is specified
 		if (!__ent_spec)
@@ -170,9 +178,11 @@ namespace nn {
 
 		//set the next layer shape to be the output shape
 		init_layer_shape = f->output_shape;
+
+		return f;
 	}
 
-	void network_model::reshape(shape output_shape)
+	reshape_function* network_model::reshape(shape output_shape)
 	{
 		//check that the entry shape is specified
 		if (!__ent_spec)
@@ -186,49 +196,88 @@ namespace nn {
 
 		//set the next layer shape to be the output shape
 		init_layer_shape = output_shape;
+
+		return f;
 	}
 
-	void network_model::relu()
+	dropout_function* network_model::dropout(float keep_rate)
 	{
 		//check that the entry shape is specified
 		if (!__ent_spec)
 			throw exception("Entry size not specified");
 
-		//create the relu function and add it to the instructions directly
-		instructions.push_back(new relu_function(init_layer_shape));
+		//create the reshape function
+		dropout_function* f = new dropout_function(keep_rate);
+
+		f->set_input_shape(init_layer_shape);
+
+		//push the function into the instruction function list
+		instructions.push_back(f);
+
+		return f;
 	}
 
-	void network_model::leaky_relu(float alpha)
+	relu_function* network_model::relu()
 	{
 		//check that the entry shape is specified
 		if (!__ent_spec)
 			throw exception("Entry size not specified");
 
-		//create the leaky relu function and add it to the instructions directly
-		instructions.push_back(new leaky_relu_function(init_layer_shape, alpha));
+		//create the relu function 
+		relu_function* f = new relu_function(init_layer_shape);
+
+		//push the function into the instruction function list
+		instructions.push_back(f);
+
+		return f;
 	}
 
-	void network_model::tanh()
+	leaky_relu_function* network_model::leaky_relu(float alpha)
+	{
+		//check that the entry shape is specified
+		if (!__ent_spec)
+			throw exception("Entry size not specified");
+		
+		//create the leaky relu function 
+		leaky_relu_function* f = new leaky_relu_function(init_layer_shape, alpha);
+
+		//push the function into the instruction function list
+		instructions.push_back(f);
+
+		return f;
+	}
+
+	tanh_function* network_model::tanh()
 	{
 		//check that the entry shape is specified
 		if (!__ent_spec)
 			throw exception("Entry size not specified");
 
-		//create the tanh function and add it to the instructions directly
-		instructions.push_back(new tanh_function(init_layer_shape));
+		//create the tanh function 
+		tanh_function* f = new tanh_function(init_layer_shape);
+
+		//push the function into the instruction function list
+		instructions.push_back(f);
+
+		return f;
 	}
 
-	void network_model::sigmoid()
+	sigmoid_function* network_model::sigmoid()
 	{
 		//check that the entry shape is specified
 		if (!__ent_spec)
 			throw exception("Entry size not specified");
 
-		//create the sigmoid function and add it to the instructions directly
-		instructions.push_back(new sigmoid_function(init_layer_shape));
+		//create the sigmoid function 
+		sigmoid_function* f = new sigmoid_function(init_layer_shape);
+
+		//push the function into the instruction function list
+		instructions.push_back(f);
+
+		return f;
 	}
 
-	void network_model::function(instruction_function *func)
+	instruction_function* network_model::function(instruction_function *func)
 	{
 		//check that the entry shape is specified
 		if (!__ent_spec)
@@ -236,6 +285,8 @@ namespace nn {
 
 		//add the function passed in the the instructions
 		instructions.push_back(func);
+
+		return func;
 	}
 	
 	void network_model::add_logger(analytics logger)
@@ -368,6 +419,10 @@ namespace nn {
 
 			//loop through each function in the model
 			for (int i = 0; i < instructions.size(); i++) {
+				//if this is a train only function, skip over it
+				if (instructions[i]->get_type() & instruction_function_type::TRAIN_ONLY)
+					continue;
+
 				//get a reference to the output from this layer
 				d_out_layer = instructions[i]->get_out_vector();
 
@@ -668,6 +723,10 @@ namespace nn {
 
 			//loop through each function in the model
 			for (int i = 0; i < instructions.size(); i++) {
+				//if this is a train only function, skip over it
+				if (instructions[i]->get_type() & instruction_function_type::TRAIN_ONLY)
+					continue;
+
 				//get a reference to the output from this layer
 				d_out_layer = instructions[i]->get_out_vector();
 
@@ -690,7 +749,7 @@ namespace nn {
 			cuda_safe_call(cudaMallocManaged(&d_out_argmax, sizeof(int) * current_batch_size));
 
 			//get the argmax for each output
-			argmax(d_out_layer, d_out_argmax, output_shape.size(), current_batch_size);
+			apply_argmax(d_out_layer, d_out_argmax, output_shape.size(), current_batch_size);
 
 			//if the test has 1 dimension, it is sparse encoded, else it is one hot encoded
 			if (test_y.get_dimensions() == 1) {
@@ -705,7 +764,7 @@ namespace nn {
 				cuda_safe_call(cudaMallocManaged(&d_label_argmax, sizeof(int) * current_batch_size));
 
 				//get the argmax for each label
-				argmax(test_y.get_dev_pointer(), d_label_argmax, output_shape.size(), current_batch_size);
+				apply_argmax(test_y.get_dev_pointer(), d_label_argmax, output_shape.size(), current_batch_size);
 
 				//compare the test pointer to the output pointer and accumulate results
 				comp_eq(d_out_argmax, d_label_argmax, d_total_correct, current_batch_size);
@@ -776,6 +835,10 @@ namespace nn {
 
 			//loop through each function in the model
 			for (int i = 0; i < instructions.size(); i++) {
+				//if this is a train only function, skip over it
+				if (instructions[i]->get_type() & instruction_function_type::TRAIN_ONLY)
+					continue;
+
 				//get a reference to the output from this layer
 				d_out_layer = instructions[i]->get_out_vector();
 
@@ -798,7 +861,7 @@ namespace nn {
 			cuda_safe_call(cudaMallocManaged(&d_out_argmax, sizeof(int) * current_batch_size));
 
 			//get the argmax for each output
-			argmax(d_out_layer, d_out_argmax, output_shape.size(), current_batch_size);
+			apply_argmax(d_out_layer, d_out_argmax, output_shape.size(), current_batch_size);
 
 			tensor test_y = *b_iter.get_next_batch_labels();
 
@@ -815,7 +878,7 @@ namespace nn {
 				cuda_safe_call(cudaMallocManaged(&d_label_argmax, sizeof(int) * current_batch_size));
 
 				//get the argmax for each label
-				argmax(test_y.get_dev_pointer(), d_label_argmax, output_shape.size(), current_batch_size);
+				apply_argmax(test_y.get_dev_pointer(), d_label_argmax, output_shape.size(), current_batch_size);
 
 				//compare the test pointer to the output pointer and accumulate results
 				comp_eq(d_out_argmax, d_label_argmax, d_total_correct, current_batch_size);

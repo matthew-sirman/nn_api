@@ -13,13 +13,19 @@
 #include "analytics.h"
 #include "batch_iterator.h"
 #include "variable_initialiser.h"
+#include "layers.h"
+#include "output_functions.h"
 
 #include "timer.h"
 
-using namespace nn;
 using namespace std;
 
-namespace nn {
+using namespace nnet;
+using namespace nnet::instructions;
+using namespace nnet::optimisers;
+using namespace nnet::cost_functions;
+
+namespace nnet {
 	//Network Model
 	//Defines a trainable neural network model. There are numerous helper functions to
 	//more easily add layers to the network model. Once a model is defined, optimisers,
@@ -46,20 +52,23 @@ namespace nn {
 		//Adds a trainable "add" function to the end of the network model.
 		//The "biases" tensor will be added to the input vector when run.
 		//The "biases" tensor will be trained, unless locked.
-		void add(tensor biases);
+		//Returns a pointer to the added function.
+		add_function* add(tensor biases);
 
 		//Matmul
 		//Adds a trainable "matmul" function to the end of the network model.
 		//The "weights" tensor will be multiplied with the input vector when run.
 		//The "weights" tensor will be trained, unless locked.
-		void matmul(tensor weights);
+		//Returns a pointer to the added function.
+		matmul_function* matmul(tensor weights);
 
 		//Dense
 		//Adds a dense layer to the end of the network model.
 		//A dense layer consists of a single matmul layer and a single
 		//add layer. The dense layer will create tensors for weights and
 		//biases automatically, which will be trained.
-		void dense(size_t units, variable_initialiser weight_initialiser = variable_initialiser(), variable_initialiser bias_initialiser = variable_initialiser());
+		//Returns a reference to the added layer.
+		dense_layer dense(size_t units, variable_initialiser weight_initialiser = variable_initialiser(), variable_initialiser bias_initialiser = variable_initialiser());
 
 		//Conv2D
 		//Adds a trainable 2D convolutional filter function to the end of the network model.
@@ -70,7 +79,8 @@ namespace nn {
 		//filter shape.
 		//SAME padding will keep the size (width by height) of the output map the same as the input
 		//map.
-		void conv2d(shape filter_shape, size_t n_filters, padding_type padding = padding_type::VALID, variable_initialiser initialiser = variable_initialiser());
+		//Returns a pointer to the added function.
+		conv2d_function* conv2d(shape filter_shape, size_t n_filters, padding_type padding = padding_type::PADDING_VALID, variable_initialiser initialiser = variable_initialiser());
 
 		//Conv2D
 		//Adds a trainable 2D convolutional filter function to the end of the network model.
@@ -79,7 +89,8 @@ namespace nn {
 		//Padding size can be explicitly set. The padding size will create a
 		//border of 0s, where the border thickness is dependant on the width and height 
 		//of the padding shape.
-		void conv2d(shape filter_shape, size_t n_filters, shape padding, variable_initialiser initialiser = variable_initialiser());
+		//Returns a pointer to the added function.
+		conv2d_function* conv2d(shape filter_shape, size_t n_filters, shape padding, variable_initialiser initialiser = variable_initialiser());
 
 		//Conv2D
 		//Adds a trainable 2D convolutional filter function to the end of the network model.
@@ -88,46 +99,60 @@ namespace nn {
 		//border of 0s, where the border thickness is dependant on the width and height 
 		//of the padding shape.
 		//The "biases" tensor will be trained, unless locked.
-		void conv2d(tensor filter, shape padding);
+		//Returns a pointer to the added function.
+		conv2d_function* conv2d(tensor filter, shape padding);
 
 		//Max Pool
 		//Adds a max pooling function to the end of the network model.
 		//Strides over the input space and returns the maximum value in each pool
 		//defined by the pool_size parameter.
-		void max_pool(shape pool_size, shape stride);
+		//Returns a pointer to the added function.
+		max_pool_function* max_pool(shape pool_size, shape stride);
 
 		//Flatten
 		//Adds a flatten function to the end of the network model.
 		//Flatten will take a multidimensional input and flatten it into a single dimension
 		//with the same total size.
-		void flatten();
+		//Returns a pointer to the added function.
+		flatten_function* flatten();
 
 		//Reshape
 		//Adds a reshape function to the end of the network model.
 		//Reshape will take an input with a given shape and transform it into a new specified
 		//output shape with the same total size.
-		void reshape(shape output_shape);
+		//Returns a pointer to the added function.
+		reshape_function* reshape(shape output_shape);
+
+		//Dropout
+		//Adds a dropout function to the end of the network model.
+		//Dropout will randomly drop nodes with a given probability for regularisation.
+		//Returns a pointer to the added function.
+		dropout_function* dropout(float keep_rate);
 
 		//ReLU
 		//Adds a ReLU activation function to the end of the network model.
 		//ReLU will apply the function f(x) = max(0, x) elementwise over the entire input.
-		void relu();
+		//Returns a pointer to the added function.
+		relu_function* relu();
 
 		//Leaky ReLU
 		//Adds a Leaky ReLU activation function to the end of the network model.
 		//Leaky ReLU will apply the function f(x) = {x: x > 0, alpha: x <= 0} elementwise
 		//over the entire input.
-		void leaky_relu(float alpha);
+		//Returns a pointer to the added function.
+		leaky_relu_function* leaky_relu(float alpha);
 
 		//Tanh
 		//Adds a Tanh activation function to the end of the network model.
 		//Tanh will apply the function f(x) = tanh(x) elementwise over the entire input.
-		void tanh();
+		//Returns a pointer to the added function.
+		tanh_function* tanh();
 
 		//Sigmoid
 		//Adds a Sigmoid activation function to the end of the network model.
 		//Sigmoid will apply the function f(x) = 1/(1 + e^(-x)) elementwise over the entire input.
-		void sigmoid();
+		//Returns a pointer to the added function.
+		sigmoid_function* sigmoid();
 
 		//Function
 		//Adds a general function to the end of the network model.
@@ -135,23 +160,26 @@ namespace nn {
 		//provided they implement the abstract "instruction_function" class.
 		//NOTE: In current version, custom functions can not be serialised and
 		//saved
-		void function(instruction_function *func);
+		//Returns a pointer to the added function.
+		instruction_function* function(instruction_function* func);
 
 		//Set Cost Function
 		//Set the cost function for the network, for use in training.
 		//Template type T must inherit from the "cost_function" class.
 		//Instantiation of the cost function is handled automatically, only
 		//the type is required.
+		//Returns a pointer to the added function.
 		template <typename T>
-		inline void set_cost_function() { cost_func = new T(); }
+		inline cost_function* set_cost_function() { cost_func = new T(); return cost_func; }
 
 		//Set Output Function
 		//Set the output function for the network, for use in predicting.
 		//Template type T must inherit from the "output_function" class.
 		//Instantiation of the output function is handled automatically, only
 		//the type is required.
+		//Returns a pointer to the added function.
 		template <typename T>
-		inline void set_output_function() { output_func = new T(); }
+		inline output_function* set_output_function() { output_func = new T(); return output_func; }
 
 		//Set Optimiser
 		//Set the optimiser for the network, for use in training.
@@ -265,7 +293,7 @@ namespace nn {
 		output_function *output_func = nullptr;
 
 		//the optimiser function for this model if it is training
-		optimiser * opt;
+		optimiser * opt = nullptr;
 
 		//the logger for training outputs and graph plotting
 		analytics *analytics_logger = nullptr;
@@ -274,10 +302,10 @@ namespace nn {
 		shape output_shape;
 
 		//the size of each batch run through the model
-		size_t batch_size;
+		size_t batch_size = 128;
 
 		//the size of the largest layer in the model (for memory allocations)
-		size_t largest_layer_size;
+		size_t largest_layer_size = 0;
 
 		//flag to determine whether the model is initialised or not
 		bool model_initialised = false;

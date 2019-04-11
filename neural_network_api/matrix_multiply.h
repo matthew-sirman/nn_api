@@ -28,9 +28,13 @@ constexpr auto THREAD_SIZE_M = BLOCK_TILE_M / THREAD_TILE_M;
 template <typename m_T, int tile_n, int tile_m, int tile_k>
 __device__ void d_thread_level_multiply(m_T r_accum[tile_n * tile_m], m_T r_A[tile_m * tile_k], m_T r_B[tile_n * tile_k]);
 
-//API FUNCTION
-//Matrix Multiply
-//Multiplies two matrices A and B together and writes into matrix C
-//Uses the GEMM matrix multiplication chunking concept
-template <typename m_T, order A_o = order::ROW, order B_o = order::ROW, order C_o = order::ROW>
-void matrix_multiply(d_matrix<m_T> &A, d_matrix<m_T> &B, d_matrix<m_T> &C);
+namespace nnet {
+	namespace nnet_internal {
+		//API FUNCTION
+		//Matrix Multiply
+		//Multiplies two matrices A and B together and writes into matrix C
+		//Uses the GEMM matrix multiplication chunking concept
+		template <typename m_T, mat_order A_o = mat_order::MAT_ORDER_ROW, mat_order B_o = mat_order::MAT_ORDER_ROW, mat_order C_o = mat_order::MAT_ORDER_ROW>
+		void matrix_multiply(d_matrix<m_T> & A, d_matrix<m_T> & B, d_matrix<m_T> & C);
+	}
+}

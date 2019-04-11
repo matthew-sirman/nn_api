@@ -46,18 +46,22 @@ constexpr float FLOAT_MIN = -3.402823566e38;
 //Cuda Safe Call
 //Macro for capturing and handling exceptions raised by Cuda
 //functions
-#define cuda_safe_call(err) __cuda_safe_call(err, __FILE__, __LINE__)
+#define cuda_safe_call(err) nnet::nnet_internal::__cuda_safe_call(err, __FILE__, __LINE__)
 
-//API FUNCTION
-//Cuda Safe Call
-//Handle Cuda exceptions
-inline void __cuda_safe_call(cudaError error, const char *file, int line, bool abort = true) {
-	//if anything other than success
-	if (error != cudaSuccess) {
-		//print message with line, file and error
-		printf("cuda_safe_call failed in file %s on line %d with error %s\n", file, line, cudaGetErrorString(error));
-		//by default, exit the application
-		if (abort)
-			exit(error);
+namespace nnet {
+	namespace nnet_internal {
+		//API FUNCTION
+		//Cuda Safe Call
+		//Handle Cuda exceptions
+		inline void __cuda_safe_call(cudaError error, const char* file, int line, bool abort = true) {
+			//if anything other than success
+			if (error != cudaSuccess) {
+				//print message with line, file and error
+				printf("cuda_safe_call failed in file %s on line %d with error %s\n", file, line, cudaGetErrorString(error));
+				//by default, exit the application
+				if (abort)
+					exit(error);
+			}
+		}
 	}
 }

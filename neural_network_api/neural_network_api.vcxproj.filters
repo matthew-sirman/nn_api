@@ -33,9 +33,6 @@
     <ClInclude Include="d_matrix.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="float_ops.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="instruction_functions.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -87,6 +84,18 @@
     <ClInclude Include="variable_initialiser.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="layers.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="output_functions.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="graph.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="nn_ops.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="analytics.cpp">
@@ -128,6 +137,15 @@
     <ClCompile Include="heirarchy_image_loader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="output_functions.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="graph.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="nn_ops.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="conv_ops_2d.cu">
@@ -142,5 +160,8 @@
     <CudaCompile Include="optimiser_kernel.cu">
       <Filter>Source Files</Filter>
     </CudaCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="ClassDiagram.cd" />
   </ItemGroup>
 </Project>

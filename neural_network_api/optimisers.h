@@ -3,121 +3,125 @@
 #include "instruction_functions.h"
 #include "optimiser_kernel.h"
 
-namespace nn {
-	//Optimiser Base Class
-	//Abstract base class for all optimiser functions. To create a custom optimiser,
-	//inherit from this class and implement the abstract functions.
-	//An optimiser should update a set of trainable parameters given a set of trainable
-	//functions.
-	class optimiser
-	{
-	public:
-		//Default Constructor
-		optimiser() {};
+using namespace nnet::instructions;
 
-		//Destructor
-		~optimiser() {};
+namespace nnet {
+	namespace optimisers {
+		//Optimiser Base Class
+		//Abstract base class for all optimiser functions. To create a custom optimiser,
+		//inherit from this class and implement the abstract functions.
+		//An optimiser should update a set of trainable parameters given a set of trainable
+		//functions.
+		class optimiser
+		{
+		public:
+			//Default Constructor
+			optimiser() {};
 
-		//API FUNCTION
-		//Optimiser
-		//Called by the API to optimise the variables in the training functions after
-		//each training step.
-		virtual void optimise() = 0;
+			//Destructor
+			~optimiser() {};
 
-		//API FUNCTION
-		//Initialise
-		//Initialise the optimiser by passing in the training functions it has to optimise
-		virtual void initialise(vector<trainable_function*> t_funcs) { this->t_funcs = t_funcs; };
+			//API FUNCTION
+			//Optimiser
+			//Called by the API to optimise the variables in the training functions after
+			//each training step.
+			virtual void optimise() = 0;
 
-		//API FUNCTION
-		//Uninitialise
-		//Uninitialise the optimiser
-		virtual void uninitialise() {};
-	protected:
-		vector<trainable_function*> t_funcs;
-	};
+			//API FUNCTION
+			//Initialise
+			//Initialise the optimiser by passing in the training functions it has to optimise
+			virtual void initialise(vector<trainable_function*> t_funcs) { this->t_funcs = t_funcs; };
 
-	//NOT IMPLEMENTED
-	//Stochastic Gradient Descent Optimiser
-	//Optimises a function by taking small steps in the direction of steepest
-	//descent to approach a local minimum
-	class stochastic_gradient_descent : public optimiser
-	{
-	public:
-		//Constructor specifying the learning rate. Momentum defaults to 0
-		stochastic_gradient_descent(float learning_rate) : stochastic_gradient_descent(learning_rate, 0) {};
+			//API FUNCTION
+			//Uninitialise
+			//Uninitialise the optimiser
+			virtual void uninitialise() {};
+		protected:
+			vector<trainable_function*> t_funcs;
+		};
 
-		//Constructor specifying the learning rate and the momentum
-		stochastic_gradient_descent(float learning_rate, float momentum);
+		//NOT IMPLEMENTED
+		//Stochastic Gradient Descent Optimiser
+		//Optimises a function by taking small steps in the direction of steepest
+		//descent to approach a local minimum
+		class stochastic_gradient_descent : public optimiser
+		{
+		public:
+			//Constructor specifying the learning rate. Momentum defaults to 0
+			stochastic_gradient_descent(float learning_rate) : stochastic_gradient_descent(learning_rate, 0) {};
 
-		//Destructor
-		~stochastic_gradient_descent() {};
+			//Constructor specifying the learning rate and the momentum
+			stochastic_gradient_descent(float learning_rate, float momentum);
 
-		//API FUNCTION
-		//Optimiser
-		//Called by the API to optimise the variables in the training functions after
-		//each training step.
-		void optimise() override;
+			//Destructor
+			~stochastic_gradient_descent() {};
 
-	private:
-		//constant value of the momentum added to each training stage
-		float momentum;
+			//API FUNCTION
+			//Optimiser
+			//Called by the API to optimise the variables in the training functions after
+			//each training step.
+			void optimise() override;
 
-		//constant value for the learning rate to scale the size of steps
-		//taken by the optimiser
-		float learning_rate;
-	};
+		private:
+			//constant value of the momentum added to each training stage
+			float momentum;
 
-	//Adam Optimiser
-	//Optimises a network model using the Adam algorithm. The Adam algorithm is an 
-	//extension on SGD algorithm for training
-	class adam : public optimiser
-	{
-	public:
-		//Constructor specifying the learning rate. Decay parameters and epsilon offset have default values
-		//so do not need to be explicitly set
-		adam(double learning_rate, double beta1 = 0.9, double beta2 = 0.999, double epsilon = 1e-8);
+			//constant value for the learning rate to scale the size of steps
+			//taken by the optimiser
+			float learning_rate;
+		};
 
-		//Destructor
-		~adam() {};
+		//Adam Optimiser
+		//Optimises a network model using the Adam algorithm. The Adam algorithm is an 
+		//extension on SGD algorithm for training
+		class adam : public optimiser
+		{
+		public:
+			//Constructor specifying the learning rate. Decay parameters and epsilon offset have default values
+			//so do not need to be explicitly set
+			adam(double learning_rate, double beta1 = 0.9, double beta2 = 0.999, double epsilon = 1e-8);
 
-		//API FUNCTION
-		//Optimiser
-		//Called by the API to optimise the variables in the training functions after
-		//each training step.
-		void optimise() override;
+			//Destructor
+			~adam() {};
 
-		//API FUNCTION
-		//Initialise
-		//Initialise the optimiser by passing in the training functions it has to optimise
-		void initialise(vector<trainable_function*> t_funcs) override;
+			//API FUNCTION
+			//Optimiser
+			//Called by the API to optimise the variables in the training functions after
+			//each training step.
+			void optimise() override;
 
-		//API FUNCTION
-		//Uninitialise
-		//Uninitialise the optimiser
-		void uninitialise() override;
+			//API FUNCTION
+			//Initialise
+			//Initialise the optimiser by passing in the training functions it has to optimise
+			void initialise(vector<trainable_function*> t_funcs) override;
 
-	private:
-		//constant value for the learning rate to scale the size of steps
-		//taken by the optimiser
-		double learning_rate;
+			//API FUNCTION
+			//Uninitialise
+			//Uninitialise the optimiser
+			void uninitialise() override;
 
-		//decay rate for the momentum vector
-		double beta1;
+		private:
+			//constant value for the learning rate to scale the size of steps
+			//taken by the optimiser
+			double learning_rate;
 
-		//decay rate for the velocity vector
-		double beta2;
+			//decay rate for the momentum vector
+			double beta1;
 
-		//small offset to avoid division by 0
-		double epsilon;
+			//decay rate for the velocity vector
+			double beta2;
 
-		//vector of momentium placeholders for each trainable layer
-		vector<float*> momentum_ps;
+			//small offset to avoid division by 0
+			double epsilon;
 
-		//vector of velocity placeholders for each trainable layer
-		vector<float*> velocity_ps;
+			//vector of momentium placeholders for each trainable layer
+			vector<float*> momentum_ps;
 
-		//step counter for decay
-		int __step = 0;
-	};
+			//vector of velocity placeholders for each trainable layer
+			vector<float*> velocity_ps;
+
+			//step counter for decay
+			int __step = 0;
+		};
+	}
 }

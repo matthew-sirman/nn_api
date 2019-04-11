@@ -23,38 +23,38 @@
     <ProjectGuid>{E3C08EC0-9D8A-4CC0-B6C9-EB2915E11C1C}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>neuralnetworkapi</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v142</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
-    <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 10.0.props" />
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 10.1.props" />
   </ImportGroup>
   <ImportGroup Label="Shared">
   </ImportGroup>
@@ -114,12 +114,12 @@
       <AdditionalLibraryDirectories>D:\boost_1_69_0\stage\lib;%(AdditionalLibraryDirectories);C:\opencv\build\x64\vc14\lib</AdditionalLibraryDirectories>
     </Link>
     <CudaCompile>
-      <Include>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.0\lib\x64</Include>
+      <Include>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\lib\x64</Include>
       <TargetMachinePlatform>64</TargetMachinePlatform>
       <CodeGeneration>compute_50,sm_50</CodeGeneration>
     </CudaCompile>
     <CudaLink>
-      <AdditionalLibraryDirectories>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.0\lib\x64</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\lib\x64</AdditionalLibraryDirectories>
     </CudaLink>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -164,12 +164,12 @@
       <AdditionalLibraryDirectories>D:\boost_1_69_0\stage\lib;%(AdditionalLibraryDirectories);C:\opencv\build\x64\vc14\lib</AdditionalLibraryDirectories>
     </Link>
     <CudaCompile>
-      <Include>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.0\lib\x64</Include>
+      <Include>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\lib\x64</Include>
       <TargetMachinePlatform>64</TargetMachinePlatform>
       <CodeGeneration>compute_50,sm_50</CodeGeneration>
     </CudaCompile>
     <CudaLink>
-      <AdditionalLibraryDirectories>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.0\lib\x64</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\lib\x64</AdditionalLibraryDirectories>
     </CudaLink>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -179,17 +179,20 @@
     <ClInclude Include="conv_ops_2d.h" />
     <ClInclude Include="cost_functions.h" />
     <ClInclude Include="d_matrix.h" />
-    <ClInclude Include="float_ops.h" />
+    <ClInclude Include="graph.h" />
     <ClInclude Include="heirarchy_image_loader.h" />
     <ClInclude Include="instructions_kernel.h" />
     <ClInclude Include="instruction_functions.h" />
     <ClInclude Include="kernel.h" />
+    <ClInclude Include="layers.h" />
     <ClInclude Include="linear_algebra_ops.h" />
     <ClInclude Include="matrix_multiply.h" />
     <ClInclude Include="mnist_data_loader.h" />
     <ClInclude Include="network_model.h" />
+    <ClInclude Include="nn_ops.h" />
     <ClInclude Include="optimisers.h" />
     <ClInclude Include="optimiser_kernel.h" />
+    <ClInclude Include="output_functions.h" />
     <ClInclude Include="shape.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
@@ -202,12 +205,15 @@
     <ClCompile Include="analytics.cpp" />
     <ClCompile Include="cost_functions.cpp" />
     <ClCompile Include="dllmain.cpp" />
+    <ClCompile Include="graph.cpp" />
     <ClCompile Include="heirarchy_image_loader.cpp" />
     <ClCompile Include="instruction_functions.cpp" />
     <ClCompile Include="mnist_data_loader.cpp" />
     <ClCompile Include="network_model.cpp" />
     <ClCompile Include="neural_network_api.cpp" />
+    <ClCompile Include="nn_ops.cpp" />
     <ClCompile Include="optimisers.cpp" />
+    <ClCompile Include="output_functions.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
@@ -222,8 +228,11 @@
     <CudaCompile Include="instructions_kernel.cu" />
     <CudaCompile Include="optimiser_kernel.cu" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="ClassDiagram.cd" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
-    <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 10.0.targets" />
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 10.1.targets" />
   </ImportGroup>
 </Project>
