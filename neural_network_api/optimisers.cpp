@@ -80,10 +80,10 @@ namespace nnet {
 			//increment the step counter
 			__step++;
 		}
-		void adam::initialise(vector<trainable_function*> t_funcs)
+		void adam::initialise(network_graph* g)
 		{
 			//call the base initialiser
-			optimiser::initialise(t_funcs);
+			optimiser::initialise(g);
 
 			//loop through each function
 			for (int f = 0; f < t_funcs.size(); f++) {

@@ -53,18 +53,12 @@ namespace nnet {
 
 			//Out Vector
 			//The output vector for this specific output function declared on the device
-			float* d_out_vector;
+			float* d_out_vector = nullptr;
 
 			//Initialised
 			//Flag to indicate if the function has been initialised
 			//Defaults to false
 			bool initialised = false;
-
-			//Batch Size
-			//The preset batch size with which the vectors are initialised
-			//Sometimes the batch size for a specific iteration may be smaller
-			//however, but it should never be larger
-			size_t batch_size;
 		};
 
 		//Softmax Function
@@ -85,7 +79,7 @@ namespace nnet {
 			//API FUNCTION
 			//Run
 			//Performs softmax over the batch to each element
-			void run(float* input, size_t batch_size) override;
+			void run() override;
 
 			//Function ID
 			//Constant set to SOFTMAX to specify that this is a softmax function
@@ -109,7 +103,7 @@ namespace nnet {
 			//API FUNCTION
 			//Run
 			//Performs argmax over the batch to each element
-			void run(float* input, size_t batch_size) override;
+			void run() override;
 
 			//API FUNCTION
 			//Initialise

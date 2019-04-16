@@ -96,6 +96,15 @@
     <ClInclude Include="nn_ops.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="node.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="error_handling.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="operation.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="analytics.cpp">
@@ -138,9 +147,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="output_functions.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="graph.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="nn_ops.cpp">

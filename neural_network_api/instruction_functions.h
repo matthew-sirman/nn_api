@@ -3,11 +3,13 @@
 #include <stdexcept>
 #include <string>
 #include <iostream>
+
 #include "instructions_kernel.h"
 #include "linear_algebra_ops.h"
 #include "conv_ops_2d.h"
 #include "tensor.h"
 #include "shape.h"
+#include "operation.h"
 
 using namespace std;
 using namespace nnet::nnet_internal;
@@ -15,14 +17,6 @@ using namespace nnet::nnet_internal;
 namespace nnet {
 
 	namespace nnet_internal {
-		//API ENUMERATION
-		//Instruction Function Type
-		//Flags if a function is trainable or not
-		enum instruction_function_type {
-			TRAINABLE = 0x01,
-			TRAIN_ONLY = 0x02
-		};
-
 		//API ENUMERATION
 		//Function ID
 		//Identifier for each of the network function types
@@ -57,15 +51,9 @@ namespace nnet {
 		//Any derived class will have a method for serialising and deserialising
 		//information to a byte stream buffer so that a model can be written to a
 		//file.
-		class serialisable_function
+		class serialisable_function : public operation
 		{
 		public:
-			//API FUNCTION
-			//Abstract Run method
-			//Called to propagate through a network
-			//Every network function should be able to be run
-			virtual void run(float* input, size_t batch_size) = 0;
-
 			//API FUNCTION
 			//Get Serialise Size
 			//Virtual function to get the size the function
@@ -102,18 +90,11 @@ namespace nnet {
 			~instruction_function();
 
 			//API FUNCTION
-			//Abstract Run Derivative method
-			//Called during the forward propagation stage but only during training
-			//Sets up any information needed for the back propagation, such as caching
-			//relevant information
-			virtual void run_derivative(float* input) = 0;
-
-			//API FUNCTION
 			//Abstract Back Propagate method
 			//Called during the backward propagation stage of training to compute
 			//the partial derivatives with respect to the input it was given during
 			//the forward pass.
-			virtual void back_propagate(float* current_pds, size_t batch_size) = 0;
+			virtual void back_propagate() = 0;
 
 			//API FUNCTION
 			//Initialise
@@ -149,13 +130,19 @@ namespace nnet {
 
 			//API FUNCTION
 			//Get Derivative Vector
-			//Returns the computed derivative vector after propagating
+			//Returns the computed derivative vector after backpropagating
 			float* get_derivative_vector();
 
 			//API FUNCTION
-			//Get Type
-			//Returns the type of this function (essentially if it is trainable)
-			const inline int get_type() { return type; }
+			//Feed Derivatives
+			//Feed the current partial derivatives to this function for training
+			void feed_derivatives(float* derivatives) {
+				this->d_partial_derivatives = derivatives;
+			}
+
+			//Is Train Function
+			//Returns true if this function is trainable, otherwise returns false
+			virtual bool is_train_function() { return false; }
 
 		protected:
 			//API FUNCTION
@@ -173,20 +160,18 @@ namespace nnet {
 			//(this vector is not necessarily used but is available if needed)
 			float* d_der_vector = nullptr;
 
+			//Partial Derivatives Vector
+			//Caches a pointer to the feed-in partial derivatives
+			float* d_partial_derivatives = nullptr;
+
+			//Output Derivatives Vector
+			//The derivatives which this function outputs after backpropagating
+			float* d_out_derivatives = nullptr;
+
 			//Initialised
 			//Flag to indicate if the function has been initialised
 			//Defaults to false
 			bool initialised = false;
-
-			//Type
-			//The type of function (trainable or non trainable)
-			int type = 0;
-
-			//Batch Size
-			//The preset batch size with which the vectors are initialised
-			//Sometimes the batch size for a specific iteration may be smaller
-			//however, but it should never be larger
-			size_t batch_size = 0;
 		};
 
 		//Abstract base class for any trainable network instruction function
@@ -196,7 +181,7 @@ namespace nnet {
 		class trainable_function : public instruction_function {
 		public:
 			//Default Constructor
-			trainable_function() { type |= instruction_function_type::TRAINABLE; }
+			trainable_function() {}
 
 			//Constructor given initial training tensor
 			//The provided tensor will be automatically updated during training.
@@ -206,13 +191,6 @@ namespace nnet {
 
 			//Destructor
 			~trainable_function() {};
-
-			//API FUNCTION
-			//Abstract Run Train Derivative method
-			//Called during the forward propagation stage but only during training
-			//Sets up any information needed for the training in back propagation, 
-			//such as caching relevant information
-			virtual void run_train_derivative(float* input, size_t batch_size) = 0;
 
 			//API FUNCTION
 			//Get Train Vector
@@ -264,7 +242,7 @@ namespace nnet {
 			//Called when the back propagation reaches this function. Calculates
 			//the final partial derivatives with respect to the train tensor and caches
 			//them
-			virtual void avg_partial_derivatives(float* current_pds, size_t batch_size) = 0;
+			virtual void avg_partial_derivatives() = 0;
 
 			//Lock
 			//Locks the training tensor, so it is unaltered during the training
@@ -277,6 +255,10 @@ namespace nnet {
 			//Locked
 			//Returns whether the training tensor is locked or not
 			inline bool locked() { return is_locked; }
+
+			//Is Train Function
+			//Returns true if this function is trainable, otherwise returns false
+			bool is_train_function() override { return true; }
 
 		protected:
 			//API FUNCTION
@@ -324,25 +306,13 @@ namespace nnet {
 			//API FUNCTION
 			//Run
 			//Add the biases to each input in the batch
-			void run(float* input, size_t batch_size) override;
-
-			//API FUNCTION
-			//Run Derivative
-			//Calculate relevant information for backpropagation.
-			//As the derivatives for addition are always 1, no operation is required
-			void run_derivative(float* input) override {};
-
-			//API FUNCTION
-			//Run Train Derivative
-			//Calculate relevant information for backpropagation training.
-			//As the derivatives for addition are always 1, no operation is required
-			void run_train_derivative(float* input, size_t batch_size) override {};
+			void run() override;
 
 			//API FUNCTION
 			//Back propagate
 			//Calculate the partial derivative with respect to the input
 			//As the derivatives for addition are always 1, no operation is required
-			void back_propagate(float* current_pds, size_t batch_size) override {};
+			void back_propagate() override;
 
 			//API FUNCTION
 			//Initialise
@@ -360,7 +330,7 @@ namespace nnet {
 			//Called when the back propagation reaches this function. Calculates
 			//the final partial derivatives with respect to the bias train tensor 
 			//and caches them
-			void avg_partial_derivatives(float* current_pds, size_t batch_size) override;
+			void avg_partial_derivatives() override;
 
 			//API FUNCTION
 			//Serialise
@@ -368,7 +338,7 @@ namespace nnet {
 			void serialise(char* stream_buffer, size_t offset) override;
 		private:
 			//vector of temporary derivates needed before calculating the average
-			float* d_derivatives;
+			float* d_derivatives = nullptr;
 		};
 
 		//Matmul Function
@@ -391,22 +361,12 @@ namespace nnet {
 			//API FUNCTION
 			//Run
 			//Multiplies each input in the batch by the weight matrix
-			void run(float* input, size_t batch_size) override;
-
-			//API FUNCTION
-			//Run Derivative
-			//Calculate relevant information for backpropagation
-			void run_derivative(float* input) override {};
-
-			//API FUNCTION
-			//Run Train Derivative
-			//Calculate relevant information for backpropagation training
-			void run_train_derivative(float* input, size_t batch_size) override;
+			void run() override;
 
 			//API FUNCTION
 			//Back propagate
 			//Calculate the partial derivative with respect to the input
-			void back_propagate(float* current_pds, size_t batch_size) override;
+			void back_propagate() override;
 
 			//API FUNCTION
 			//Initialise
@@ -430,7 +390,7 @@ namespace nnet {
 			//Called when the back propagation reaches this function. Calculates
 			//the final partial derivatives with respect to the weight train tensor 
 			//and caches them
-			void avg_partial_derivatives(float* current_pds, size_t batch_size) override;
+			void avg_partial_derivatives() override;
 
 			//API FUNCTION
 			//Serialise
@@ -442,10 +402,6 @@ namespace nnet {
 
 			//device matrix for the output of the forward propagation
 			d_matrix<float> d_out_vec;
-
-			//temporary variable to hold the back propagation result before writing back
-			//to the true partial derivative vector to avoid read/write clashes
-			float* d_bp_temp;
 		};
 
 		//Conv2D Function
@@ -469,22 +425,12 @@ namespace nnet {
 			//API FUNCTION
 			//Run
 			//Convolves each filter over the input images and writes each result to the output
-			void run(float* input, size_t batch_size) override;
-
-			//API FUNCTION
-			//Run Derivative
-			//Calculate relevant information for backpropagation
-			void run_derivative(float* input) override {};
-
-			//API FUNCTION
-			//Run Train Derivative
-			//Calculate relevant information for backpropagation training
-			void run_train_derivative(float* input, size_t batch_size) override;
+			void run() override;
 
 			//API FUNCTION
 			//Back propagate
 			//Calculate the partial derivative with respect to the input
-			void back_propagate(float* current_pds, size_t batch_size) override;
+			void back_propagate() override;
 
 			//API FUNCTION
 			//Initialise
@@ -502,7 +448,7 @@ namespace nnet {
 			//Called when the back propagation reaches this function. Calculates
 			//the final partial derivatives with respect to the filter train tensor 
 			//and caches them
-			void avg_partial_derivatives(float* current_pds, size_t batch_size) override;
+			void avg_partial_derivatives() override;
 
 			//API FUNCTION
 			//Get Serialise Size
@@ -535,10 +481,6 @@ namespace nnet {
 
 			//the padding for the filter
 			shape padding;
-
-			//temporary variable to hold the back propagation result before writing back
-			//to the true partial derivative vector to avoid read/write clashes
-			float* d_tmp_backprop_output;
 		};
 
 		//Max Pool Function
@@ -559,17 +501,12 @@ namespace nnet {
 			//API FUNCTION
 			//Run
 			//Performs max pooling convolution over each input
-			void run(float* input, size_t batch_size) override;
-
-			//API FUNCTION
-			//Run Derivative
-			//Calculate relevant information for backpropagation
-			void run_derivative(float* input) override {};
+			void run() override;
 
 			//API FUNCTION
 			//Back propagate
 			//Calculate the partial derivative with respect to the input
-			void back_propagate(float* current_pds, size_t batch_size) override;
+			void back_propagate() override;
 
 			//API FUNCTION
 			//Initialise
@@ -613,7 +550,7 @@ namespace nnet {
 			shape padding;
 
 			//mask pointer for back propagation
-			int* d_mask;
+			int* d_mask = nullptr;
 		};
 
 		//Reshape Function
@@ -634,21 +571,17 @@ namespace nnet {
 			//API FUNCTION
 			//Run
 			//Performs reshaping for this layer
-			inline void run(float* input, size_t batch_size) override {
-				cuda_safe_call(cudaMemcpy(d_out_vector, input, sizeof(float) * input_shape.size() * batch_size, cudaMemcpyDeviceToDevice));
+			inline void run() override {
+				cuda_safe_call(cudaMemcpy(d_out_vector, feed_data, sizeof(float) * input_shape.size() * batch_size, cudaMemcpyDeviceToDevice));
 			}
-
-			//API FUNCTION
-			//Run Derivative
-			//Calculate relevant information for backpropagation
-			//Nothing required for this function (as it is entirely linear)
-			inline void run_derivative(float* input) override {};
 
 			//API FUNCTION
 			//Back propagate
 			//Calculate the partial derivative with respect to the input
 			//Nothing required for this function (as it is entirely linear)
-			inline void back_propagate(float* current_pds, size_t batch_size) override {};
+			inline void back_propagate() override {
+				cuda_safe_call(cudaMemcpy(d_out_derivatives, d_partial_derivatives, sizeof(float) * input_shape.size() * batch_size, cudaMemcpyDeviceToDevice));
+			};
 
 			//API FUNCTION
 			//Set Input Shape
@@ -693,10 +626,10 @@ namespace nnet {
 		class dropout_function : public instruction_function {
 		public:
 			//Default Constructor
-			dropout_function() { type |= instruction_function_type::TRAIN_ONLY; }; \
+			dropout_function() {};
 
-				//Constructor specifying keep rate
-				dropout_function(float keep_rate) { this->keep_rate = keep_rate; }
+			//Constructor specifying keep rate
+			dropout_function(float keep_rate) { this->keep_rate = keep_rate; }
 
 			//Destructor
 			~dropout_function() {};
@@ -704,18 +637,12 @@ namespace nnet {
 			//API FUNCTION
 			//Run
 			//Performs dropout over the input at the given rate
-			void run(float* input, size_t batch_size) override;
-
-			//API FUNCTION
-			//Run Derivative
-			//Calculate relevant information for backpropagation
-			//Nothing required for this function
-			inline void run_derivative(float* input) override {};
+			void run() override;
 
 			//API FUNCTION
 			//Back propagate
 			//Calculate the partial derivative with respect to the input
-			void back_propagate(float* current_pds, size_t batch_size) override;
+			void back_propagate() override;
 
 			//API FUNCTION
 			//Initialise
@@ -758,17 +685,12 @@ namespace nnet {
 			//API FUNCTION
 			//Run
 			//Performs elementwise ReLU over input
-			void run(float* input, size_t batch_size) override;
-
-			//API FUNCTION
-			//Run Derivative
-			//Calculate relevant information for backpropagation
-			void run_derivative(float* input) override;
+			void run() override;
 
 			//API FUNCTION
 			//Back propagate
 			//Calculate the partial derivative with respect to the input
-			void back_propagate(float* current_pds, size_t batch_size) override;
+			void back_propagate() override;
 
 			//API FUNCTION
 			//Initialise
@@ -808,17 +730,12 @@ namespace nnet {
 			//API FUNCTION
 			//Run
 			//Performs elementwise Leaky ReLU over input
-			void run(float* input, size_t batch_size) override;
-
-			//API FUNCTION
-			//Run Derivative
-			//Calculate relevant information for backpropagation
-			void run_derivative(float* input) override;
+			void run() override;
 
 			//API FUNCTION
 			//Back propagate
 			//Calculate the partial derivative with respect to the input
-			void back_propagate(float* current_pds, size_t batch_size) override;
+			void back_propagate() override;
 
 			//API FUNCTION
 			//Initialise
@@ -833,7 +750,7 @@ namespace nnet {
 
 			//Alpha
 			//Constant alpha for the "leak" of the function
-			float alpha;
+			float alpha = 0.0f;
 
 			//API FUNCTION
 			//Get Serialise Size
@@ -869,17 +786,12 @@ namespace nnet {
 			//API FUNCTION
 			//Run
 			//Performs elementwise Tanh over input
-			void run(float* input, size_t batch_size) override;
-
-			//API FUNCTION
-			//Run Derivative
-			//Calculate relevant information for backpropagation
-			void run_derivative(float* input) override;
+			void run() override;
 
 			//API FUNCTION
 			//Back propagate
 			//Calculate the partial derivative with respect to the input
-			void back_propagate(float* current_pds, size_t batch_size) override;
+			void back_propagate() override;
 
 			//API FUNCTION
 			//Initialise
@@ -915,17 +827,12 @@ namespace nnet {
 			//API FUNCTION
 			//Run
 			//Performs elementwise Sigmoid over input
-			void run(float* input, size_t batch_size) override;
-
-			//API FUNCTION
-			//Run Derivative
-			//Calculate relevant information for backpropagation
-			void run_derivative(float* input) override;
+			void run() override;
 
 			//API FUNCTION
 			//Back propagate
 			//Calculate the partial derivative with respect to the input
-			void back_propagate(float* current_pds, size_t batch_size) override;
+			void back_propagate() override;
 
 			//API FUNCTION
 			//Initialise
@@ -942,6 +849,19 @@ namespace nnet {
 			//Serialise
 			//Serialises an instruction function into a byte stream
 			void serialise(char* stream_buffer, size_t offset) override;
+		};
+
+		//NOT IMPLEMENTED
+		//Concatenate Function
+		class concatenate_function : public instruction_function {
+		public:
+			//Default Constructor
+			concatenate_function() {};
+
+			//Destructor
+			~concatenate_function() {};
+		private:
+
 		};
 
 		//NOT IMPLEMENTED
@@ -967,10 +887,9 @@ namespace nnet {
 			batch_normalisation_function() : batch_normalisation_function(1) {};
 			batch_normalisation_function(size_t input_size);
 
-			void run(float* input, size_t batch_size) override;
-			void run_derivative(float* input) override;
+			void run() override;
 
-			void back_propagate(float* current_pds, size_t batch_size) override;
+			void back_propagate() override;
 
 			void initialise(size_t batch_size) override;
 			void uninitialise() override;

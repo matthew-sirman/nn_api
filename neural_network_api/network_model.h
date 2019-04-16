@@ -1,6 +1,5 @@
 #pragma once
 
-#include <stdexcept>
 #include <vector>
 #include <string>
 #include <fstream>
@@ -8,6 +7,7 @@
 #include <codecvt>
 #include <time.h>
 
+#include "nn_ops.h"
 #include "cost_functions.h"
 #include "optimisers.h"
 #include "analytics.h"
@@ -15,17 +15,32 @@
 #include "variable_initialiser.h"
 #include "layers.h"
 #include "output_functions.h"
-
 #include "timer.h"
+
+#include "error_handling.h"
 
 using namespace std;
 
-using namespace nnet;
+using namespace nnet::nnet_internal;
 using namespace nnet::instructions;
 using namespace nnet::optimisers;
 using namespace nnet::cost_functions;
 
 namespace nnet {
+
+	//Checkpoint
+	//Use for checkpointed training of a model. The model will save a checkpoint after every
+	//period of training defined to avoid losing the model in the event of a crash etc.
+	//CHECKPOINT_NONE - disable checkpointing
+	//CHECKPOINT_PER_EPOCH - save a checkpoint at the end of every epoch
+	//CHECKPOINT_PER_STEPS - save a checkpoint after every given number of steps
+	enum checkpoint_type {
+		CHECKPOINT_NONE = 0x00,
+		CHECKPOINT_PER_EPOCH = 0x01,
+		CHECKPOINT_PER_STEPS = 0x02,
+		CHECKPOINT_END = 0x04
+	};
+
 	//Network Model
 	//Defines a trainable neural network model. There are numerous helper functions to
 	//more easily add layers to the network model. Once a model is defined, optimisers,
@@ -170,7 +185,11 @@ namespace nnet {
 		//the type is required.
 		//Returns a pointer to the added function.
 		template <typename T>
-		inline cost_function* set_cost_function() { cost_func = new T(); return cost_func; }
+		inline cost_function* set_cost_function() { 
+			cost_function* cost_func = new T(); 
+			model_graph.set_cost_function(cost_func);
+			return cost_func;
+		}
 
 		//Set Output Function
 		//Set the output function for the network, for use in predicting.
@@ -179,7 +198,11 @@ namespace nnet {
 		//the type is required.
 		//Returns a pointer to the added function.
 		template <typename T>
-		inline output_function* set_output_function() { output_func = new T(); return output_func; }
+		inline output_function* set_output_function() { 
+			output_function* output_func = new T(); 
+			model_graph.set_output_function(output_func);
+			return output_func; 
+		}
 
 		//Set Optimiser
 		//Set the optimiser for the network, for use in training.
@@ -192,7 +215,7 @@ namespace nnet {
 		//console regarding current training progress, step time and loss. A logger 
 		//may also be used to plot a realtime graph of cost against training step.
 		//To display a realtime graph, call the plot() method on the logger object.
-		void add_logger(analytics logger);
+		void add_logger(analytics& logger);
 
 		//Initialise Model
 		//Initialise the network model before any network operation can be performed on it.
@@ -226,7 +249,7 @@ namespace nnet {
 		//that element in the following dimensions.
 		//The train_y tensor should have each element in the first dimension, followed by the expected result for
 		//that element in the following dimensions.
-		void train(tensor train_x, tensor train_y, int epochs);
+		void train(tensor train_x, tensor train_y, int epochs, bool from_start = false);
 
 		//Train
 		//Train the network model by minimising the loss between expected and observed results
@@ -235,7 +258,7 @@ namespace nnet {
 		//which will be compared to the expected result from the iterator. The train function will iteratively
 		//update the trainable parameters in the network model to give better predictions over a number
 		//of training steps (epochs).
-		void train(batch_iterator &b_iter, int epochs);
+		void train(batch_iterator &b_iter, int epochs, bool from_start = false);
 
 		//Evaluate
 		//Evaluate the network model by testing what percentage of inputs from a separate unseen dataset 
@@ -257,40 +280,36 @@ namespace nnet {
 		//over the test set.
 		float evaluate(batch_iterator &b_iter);
 
-		//Write Model To File
+		//Export Model To File
 		//Export a model to a specified folder given a name.
 		//The model will be stored in a folder with the given name, and a .model file will be created.
 		//All trainable parameters will be saved for future use.
-		void write_model_to_file(string model_folder, string model_name);
+		void export_model_to_file(string model_folder, string model_name);
 
-		//Load Model From File
+		//Import Model From File
 		//Statically load a model from the specified folder.
 		//Returns a network model from the .model file located in the model subfolder.
 		//All trainable parameters are loaded back into the network functions.
 		//The model must still be initialised before use.
-		static network_model load_model_from_file(string model_folder, string model_name);
+		static network_model import_model_from_file(string model_folder, string model_name);
+
+		//Set Checkpoint
+		//Setup checkpointing if this model should be periodically saved. Specify the period and
+		//save location for this model.
+		void set_checkpoint(int c_type, string model_folder, string model_name, int steps = 0);
 	private:
-		//perform both forward and backward propagation for a given batch
-		//variables about the gradients are stored within the network functions
-		void calc_batch_gradient(float * d_x_batch, float * d_y_batch, size_t current_batch_size);
+		//internal function to write a model to a file
+		void __export_model_to_file(string model_folder, string model_name);
+
+		//the internal graph to store this network under.
+		//the graph will be sequential if create by this model class
+		network_graph model_graph;
+
+		//container to hold a reference to each function in the model for initialisation
+		vector<node<instruction_function*>> graph_nodes;
 
 		//holds the current layer shape during model definition
 		shape init_layer_shape;
-
-		//holds a vector of each instruction function in the model
-		vector<instruction_function*> instructions;
-
-		//holds a vector of each of the instruction functions which are trainable
-		vector<trainable_function*> train_funcs;
-
-		//holds the shape of each layer including the input shape
-		vector<shape> layer_shapes;
-
-		//the cost function for this model if it is training
-		cost_function *cost_func = nullptr;
-
-		//the output for this model when making predictions
-		output_function *output_func = nullptr;
 
 		//the optimiser function for this model if it is training
 		optimiser * opt = nullptr;
@@ -305,13 +324,28 @@ namespace nnet {
 		size_t batch_size = 128;
 
 		//the size of the largest layer in the model (for memory allocations)
-		size_t largest_layer_size = 0;
+		//size_t largest_layer_size = 0;
 
 		//flag to determine whether the model is initialised or not
 		bool model_initialised = false;
 
 		//flag to determine whether the entry shape of the model has been specified
 		bool __ent_spec = false;
+
+		//the path to the folder this model should be saved in
+		string file_path;
+
+		//the name of the model for checkpointing
+		string model_name;
+
+		//the period which the model is saved
+		int cpt = checkpoint_type::CHECKPOINT_NONE;
+
+		//if step checkpointing is chosen, this is the number of steps it checkpoints after
+		int cpt_steps = 0;
+
+		//number of iterations this model has made
+		int __step = 0;
 	};
 }
 

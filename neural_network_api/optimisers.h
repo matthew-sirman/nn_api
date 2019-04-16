@@ -1,5 +1,6 @@
 #pragma once
 
+#include "graph.h"
 #include "instruction_functions.h"
 #include "optimiser_kernel.h"
 
@@ -29,14 +30,18 @@ namespace nnet {
 
 			//API FUNCTION
 			//Initialise
-			//Initialise the optimiser by passing in the training functions it has to optimise
-			virtual void initialise(vector<trainable_function*> t_funcs) { this->t_funcs = t_funcs; };
+			//Initialise the optimiser by passing in the graph it has to optimise
+			virtual void initialise(network_graph* g) { this->g = g; t_funcs = g->get_train_functions(); };
 
 			//API FUNCTION
 			//Uninitialise
 			//Uninitialise the optimiser
 			virtual void uninitialise() {};
 		protected:
+			//the graph this optimiser has to optimise
+			network_graph* g;
+
+			//the trainable functions in the graph
 			vector<trainable_function*> t_funcs;
 		};
 
@@ -93,7 +98,7 @@ namespace nnet {
 			//API FUNCTION
 			//Initialise
 			//Initialise the optimiser by passing in the training functions it has to optimise
-			void initialise(vector<trainable_function*> t_funcs) override;
+			void initialise(network_graph* g) override;
 
 			//API FUNCTION
 			//Uninitialise

@@ -22,9 +22,7 @@ namespace nnet {
 
 		//open the file stream
 		ifstream data_stream = ifstream(file_path + "\\" + file_name, ios::binary);
-		if (data_stream.fail()) {
-			throw new exception((string("Failed to load file ") + file_name).c_str());
-		}
+		ERR_ASSERT(data_stream.fail(), "Failed to load file " << file_name);
 
 		//if the file was successfully loaded, save the string
 		d_file_name = file_name;
@@ -37,12 +35,8 @@ namespace nnet {
 		//the file should be longer than the metadata size, otherwise it isn't in the MNIST
 		//format. If it is longer, set the load length to the buffer size (as we only care about
 		//the metadata at the moment)
-		if (length > sizeof(buffer)) {
-			length = sizeof(buffer);
-		}
-		else {
-			throw new exception("Incorrect dataset file format");
-		}
+		ERR_ASSERT(length <= sizeof(buffer), "Incorrect dataset file format");
+		length = sizeof(buffer);
 
 		//read in the metadata
 		data_stream.read(buffer, length);
@@ -52,10 +46,8 @@ namespace nnet {
 
 		//check that the dataset has the same number of items in the images and labels
 		//otherwise throw an excpetion
-		if (n_items == -1)
-			n_items = read_int(&buffer[4]);
-		else if (read_int(&buffer[4]) != n_items)
-			throw new exception("Data set has different number of data and labels.");
+		ERR_ASSERT(n_items != -1 && read_int(&buffer[4]) != n_items, "Data set has different number of data and labels");
+		n_items = read_int(&buffer[4]);
 
 		//read the number of rows from the 3rd 4 bytes
 		n_rows = read_int(&buffer[8]);
@@ -78,9 +70,7 @@ namespace nnet {
 
 		//open the file stream
 		ifstream label_stream = ifstream(file_path + "\\" + file_name, ios::binary);
-		if (label_stream.fail()) {
-			throw new exception((string("Failed to load file ") + file_name).c_str());
-		}
+		ERR_ASSERT(label_stream.fail(), "Failed to load file " << file_name);
 
 		//if the file was successfully loaded, save the string
 		l_file_name = file_name;
@@ -93,12 +83,8 @@ namespace nnet {
 		//the file should be longer than the metadata size, otherwise it isn't in the MNIST
 		//format. If it is longer, set the load length to the buffer size (as we only care about
 		//the metadata at the moment)
-		if (length > sizeof(buffer)) {
-			length = sizeof(buffer);
-		}
-		else {
-			throw new exception("Incorrect label file format");
-		}
+		ERR_ASSERT(length <= sizeof(buffer), "Incorrect dataset file format");
+		length = sizeof(buffer);
 
 		//read in the metadata
 		label_stream.read(buffer, length);
@@ -108,10 +94,8 @@ namespace nnet {
 
 		//check that the dataset has the same number of items in the images and labels
 		//otherwise throw an excpetion
-		if (n_items == -1)
-			n_items = read_int(&buffer[4]);
-		else if (read_int(&buffer[4]) != n_items)
-			throw new exception("Data set has different number of data and labels.");
+		ERR_ASSERT(n_items != -1 && read_int(&buffer[4]) != n_items, "Data set has different number of data and labels");
+		n_items = read_int(&buffer[4]);
 
 		//close the stream
 		label_stream.close();

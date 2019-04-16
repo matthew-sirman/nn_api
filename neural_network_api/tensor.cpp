@@ -6,8 +6,7 @@ namespace nnet {
 	tensor::tensor(size_t size)
 	{
 		//check the size isn't 0
-		if (size == 0)
-			throw exception("Cannot have a tensor with size 0");
+		ERR_ASSERT(size == 0, "Cannot have a tensor with size 0");
 
 		//set the shape to be 1D and have the right size
 		this->shape = { size };
@@ -19,8 +18,7 @@ namespace nnet {
 	tensor::tensor(size_t size, float* data)
 	{
 		//check the size isn't 0
-		if (size == 0)
-			throw exception("Cannot have a tensor with size 0");
+		ERR_ASSERT(size == 0, "Cannot have a tensor with size 0");
 
 		//set the shape to be 1D and have the right size
 		this->shape = { size };
@@ -32,15 +30,13 @@ namespace nnet {
 	tensor::tensor(vector<size_t> shape)
 	{
 		//check the number of dimensions
-		if (shape.size() == 0)
-			throw exception("Shape must have at least 1 dimension");
+		ERR_ASSERT(shape.size() == 0, "Shape must have at least 1 dimension");
 
 		//set the shape to be the input shape
 		this->shape = shape;
 
 		//check the size isn't 0
-		if (this->get_size() == 0)
-			throw exception("Cannot have a tensor with size 0");
+		ERR_ASSERT(this->get_size() == 0, "Cannot have a tensor with size 0");
 
 		//allocate enough host memory for this tensor
 		this->data = (float*)malloc(sizeof(float) * get_size());
@@ -49,15 +45,13 @@ namespace nnet {
 	tensor::tensor(vector<size_t> shape, float* data)
 	{
 		//check the number of dimensions
-		if (shape.size() == 0)
-			throw exception("Shape must have at least 1 dimension");
+		ERR_ASSERT(shape.size() == 0, "Shape must have at least 1 dimension");
 
 		//set the shape to be the input shape
 		this->shape = shape;
 
 		//check the size isn't 0
-		if (this->get_size() == 0)
-			throw exception("Cannot have a tensor with size 0");
+		ERR_ASSERT(this->get_size() == 0, "Cannot have a tensor with size 0");
 
 		//set the local data pointer to be the input data pointer
 		this->data = data;
@@ -187,8 +181,7 @@ namespace nnet {
 	tensor tensor::one_hot(size_t size, int hot)
 	{
 		//check the "hot" value is within range
-		if (hot >= size)
-			throw exception("Hot value out of range");
+		ERR_ASSERT(hot >= size, "Hot value out of range");
 
 		//create a tensor of 0s
 		tensor o_h = tensor::zeros(size);
@@ -203,8 +196,7 @@ namespace nnet {
 	tensor tensor::stack(vector<tensor> tensors)
 	{
 		//check that there are tensors to stack
-		if (tensors.size() == 0)
-			throw exception("Cannot stack 0 tensors");
+		ERR_ASSERT(tensors.size() == 0, "Cannot stack 0 tensors");
 
 		//get the size of the first tensor
 		size_t t_size = tensors[0].get_size();
@@ -215,8 +207,7 @@ namespace nnet {
 		//loop throughe each input tensor
 		for (int i = 0; i < tensors.size(); i++) {
 			//check that this tensor has the right shape
-			if (tensors[i].get_size() != t_size)
-				throw exception("Cannot stack tensors of different sizes");
+			ERR_ASSERT(tensors[i].get_size() != t_size, "Cannot stack tensors of different sizes");
 
 			//copy the data from this tensor to the end of the new data buffer
 			memcpy(&new_data[t_size * i], tensors[i].get_data(), sizeof(float) * t_size);
@@ -242,8 +233,7 @@ namespace nnet {
 			ns_size *= new_shape[i];
 
 		//check the sizes are equal
-		if (ns_size != get_size())
-			throw exception("Reshaping a tensor cannot change its size");
+		ERR_ASSERT(ns_size != get_size(), "Reshaping a tensor cannot change its size");
 
 		//to get here the sizes must be equal so we can safely overwrite the shape
 		this->shape = new_shape;
@@ -252,8 +242,7 @@ namespace nnet {
 	void tensor::set(int index, float value)
 	{
 		//check we are not trying to index a multidimensional tensor with just 1 index
-		if (shape.size() != 1)
-			throw exception("Must use multidimensional index for multidimensional tensor");
+		ERR_ASSERT(shape.size() != 1, "Must use multidimensional index for multidimensional tensor");
 
 		//set the data at the specified index to the new value
 		data[index] = value;
@@ -271,8 +260,7 @@ namespace nnet {
 	float tensor::get(int index)
 	{
 		//check we are not trying to index a multidimensional tensor with just 1 index
-		if (shape.size() != 1)
-			throw exception("Must use multidimensional index for multidimensional tensor");
+		ERR_ASSERT(shape.size() != 1, "Must use multidimensional index for multidimensional tensor");
 
 		//return the data at the specified index
 		return data[index];
@@ -332,12 +320,10 @@ namespace nnet {
 	tensor tensor::get_transpose()
 	{
 		//check that this tensor is a matrix, as the API only supports matrix transposition
-		if (shape.size() != 2)
-			throw exception("Transpose tensor must have 2 dimensions");
+		ERR_ASSERT(shape.size() != 2, "Transpose tensor must have 2 dimensions");
 
 		//check that we are initialised, as this a device operation
-		if (!initialised)
-			throw exception("Cannot retrieve transpose of undefined matrix");
+		ERR_ASSERT(initialised, "Cannot retrieve transpose of undefined matrix");
 
 		//create a new tensor with the shape flipped for the transpose
 		tensor * trans = new tensor({ shape[1], shape[0] });
@@ -432,8 +418,7 @@ namespace nnet {
 	int tensor::get_linear_offset(vector<int> index)
 	{
 		//check that there is an index for the correct number of dimensions
-		if (index.size() != shape.size())
-			throw exception("Incorrect number of tensor set indices");
+		ERR_ASSERT(index.size() != shape.size(), "Incorrect number of tensor set indices");
 
 		//initialise the offset to 0
 		int linear_offset = 0;
@@ -441,8 +426,7 @@ namespace nnet {
 		//loop through each dimension
 		for (int i = 0; i < shape.size(); i++) {
 			//check the index is in the range of its respective dimension
-			if (index[i] >= shape[i])
-				throw exception("Index out of bound in dimension " + i);
+			ERR_ASSERT(index[i] >= shape[i], "Index out of bound in dimension " << i);
 
 			//find the size of the remaining dimensions
 			int dim_off = 1;

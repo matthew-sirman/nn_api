@@ -13,6 +13,7 @@ namespace nnet {
 	{
 		log_type = out_type;
 		tmr = timer();
+		plot_data = vector<pair<double, double>>();
 	}
 
 	analytics::analytics(int steps)
@@ -20,6 +21,7 @@ namespace nnet {
 		log_type = log_output_type::LOG_PER_STEPS;
 		tmr = timer();
 		this->log_steps = steps;
+		plot_data = vector<pair<double, double>>();
 	}
 
 
@@ -134,7 +136,7 @@ namespace nnet {
 		//if the user specified plotting
 		if (plotting) {
 			//add the current step and cost to the end of the plot_data vector
-			plot_data.emplace_back(cur_step, avg_loss);
+			plot_data.push_back(pair<double, double>(cur_step, avg_loss));
 
 			//default the start point to 0
 			int start = 0;

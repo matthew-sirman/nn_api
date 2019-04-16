@@ -8,30 +8,34 @@ namespace nnet {
 	namespace cost_functions {
 		//Abstract base class for all cost functions
 		//Gives a metric for how far two distributions are from each other
-		class cost_function
+		class cost_function : public operation
 		{
 		public:
 			//Default constructor
 			cost_function();
+
 			//Constructor with one_hot flag option
 			cost_function(bool one_hot);
+
+			//Destructor
 			~cost_function();
 
-			//Abstract method for return a metric for the difference between the two specified distributions
-			//"input" and "y"
-			virtual void cost(float* input, float* y, size_t batch_size) = 0;
-
-			//Abstract method for return the derivative between the distributions "input" and "y"
-			virtual void cost_derivative(float* input, float* y, size_t batch_size) = 0;
+			//Abstract method for returning the derivative between the distributions x (observed) 
+			//and y (expected)
+			virtual void cost_derivative() = 0;
 
 			//Initialise the cost function
-			virtual void initialise(shape input_shape, size_t batch_size, int total_size);
+			virtual void initialise(shape input_shape, size_t batch_size);
 
 			//Uninitialise the cost function
 			virtual void uninitialise();
 
 			//Return the average loss for the last batch
 			virtual float get_average_loss();
+
+			void feed_target_data(float* targets) {
+				this->targets = targets;
+			}
 
 			//Reset the average loss value to 0
 			void clear_loss() { avg_loss = 0; }
@@ -47,22 +51,25 @@ namespace nnet {
 			shape input_shape;
 
 			//the batch size
-			size_t batch_size;
+			size_t batch_size = 0;
 
 			//a float variable to hold the cost output
-			float* d_output;
+			float* d_output = nullptr;
 
 			//float array to hold the derivative vector
-			float* d_der_vector;
+			float* d_der_vector = nullptr;
 
 			//flag to indicate whether the labels are in one-hot format
-			bool one_hot;
+			bool one_hot = false;
 
 			//float to store the average loss on the device
-			float* d_avg_loss;
+			float* d_avg_loss = nullptr;
 
 			//float to store the average loss on the host
 			float avg_loss = 0;
+
+			//vector of targets fed into this function
+			float* targets = nullptr;
 		};
 
 		//Squared Error Cost Function
@@ -83,14 +90,14 @@ namespace nnet {
 			~squared_error() {};
 
 			//API FUNCTION
-			//Cost
+			//Run
 			//Returns the squared error cost or loss between two distributions
-			void cost(float* input, float* y, size_t batch_size) override;
+			void run() override;
 
 			//API FUNCTION
 			//Cost Derivative
 			//Returns the derivative between the "input" and "y" distributions
-			void cost_derivative(float* input, float* y, size_t batch_size) override;
+			void cost_derivative() override;
 		};
 
 		//Cross Entropy Cost Function
@@ -109,25 +116,25 @@ namespace nnet {
 			~softmax_cross_entropy() {};
 
 			//API FUNCTION
-			//Cost
+			//Run
 			//Returns the cross entropy cost or loss between two distributions
-			void cost(float* input, float* y, size_t batch_size) override;
+			void run() override;
 
 			//API FUNCTION
 			//Cost Derivative
 			//Returns the derivative between the "input" and "y" distributions
-			void cost_derivative(float* input, float* y, size_t batch_size) override;
+			void cost_derivative() override;
 
 			//API FUNCTION
 			//Initialise
-			void initialise(shape input_shape, size_t batch_size, int total_size) override;
+			void initialise(shape input_shape, size_t batch_size) override;
 
 			//API FUNCTION
 			//Uninitialise
 			void uninitialise() override;
 		private:
 			//placeholder variable for the softmax function
-			float* d_softmax;
+			float* d_softmax = nullptr;
 		};
 	}
 }

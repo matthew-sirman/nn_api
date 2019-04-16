@@ -21,7 +21,7 @@ namespace nnet {
 
 		}
 
-		void cost_function::initialise(shape input_shape, size_t batch_size, int total_size)
+		void cost_function::initialise(shape input_shape, size_t batch_size)
 		{
 			//initialise all the default parameters for the cost function
 			this->batch_size = batch_size;
@@ -56,10 +56,10 @@ namespace nnet {
 			return input_shape.size();
 		}
 
-		void squared_error::cost(float* input, float* y, size_t batch_size)
+		void squared_error::run()
 		{
 			//run the cost function and write the cost to the output
-			squared_error_cost(input, y, d_output, input_shape.size() * batch_size);
+			squared_error_cost(feed_data, targets, d_output, input_shape.size() * batch_size);
 
 			//find the average value from the array returned
 			average_value(d_output, d_avg_loss, batch_size);
@@ -68,25 +68,25 @@ namespace nnet {
 			cuda_safe_call(cudaMemcpy(&avg_loss, d_avg_loss, sizeof(float) * 1, cudaMemcpyDeviceToHost));
 		}
 
-		void squared_error::cost_derivative(float* input, float* y, size_t batch_size)
+		void squared_error::cost_derivative()
 		{
 			//initialise the derivative vector to 0
 			cuda_safe_call(cudaMemset(d_der_vector, 0, sizeof(float) * input_shape.size() * batch_size));
 
 			//get the derivative between the distributions
-			squared_error_cost_derivative(input, y, d_der_vector, input_shape.size() * batch_size);
+			squared_error_cost_derivative(feed_data, targets, d_der_vector, input_shape.size() * batch_size);
 
 			//average the derivative at this point to prevent explosions and save on computations
 			scalar_matrix_multiply_f(d_der_vector, d_der_vector, 1.0 / batch_size, input_shape.size() * batch_size);
 		}
 
-		void softmax_cross_entropy::cost(float* input, float* y, size_t batch_size)
+		void softmax_cross_entropy::run()
 		{
 			//initalise the output to 0
 			cuda_safe_call(cudaMemset(d_output, 0, sizeof(float)));
 
 			//calculate the cross entropy cost for the distributions
-			softmax_cross_entropy_cost(input, y, d_output, input_shape.size(), batch_size);
+			softmax_cross_entropy_cost(feed_data, targets, d_output, input_shape.size(), batch_size);
 
 			//get the total loss
 			float* loss = new float();
@@ -96,26 +96,26 @@ namespace nnet {
 			avg_loss = *loss / batch_size;
 		}
 
-		void softmax_cross_entropy::cost_derivative(float* input, float* y, size_t batch_size)
+		void softmax_cross_entropy::cost_derivative()
 		{
 			//initialise the softmax and derivative vectors to 0
 			cuda_safe_call(cudaMemset(d_softmax, 0, sizeof(float) * input_shape.size() * batch_size));
 			cuda_safe_call(cudaMemset(d_der_vector, 0, sizeof(float) * input_shape.size() * batch_size));
 
 			//get the softmax output of the input vector
-			apply_softmax(input, d_softmax, input_shape.size(), batch_size, 1);
+			apply_softmax(feed_data, d_softmax, input_shape.size(), batch_size, 1);
 
 			//calucate the derivative
-			softmax_cross_entropy_derivative(d_softmax, y, d_der_vector, input_shape.size(), batch_size);
+			softmax_cross_entropy_derivative(d_softmax, targets, d_der_vector, input_shape.size(), batch_size);
 
 			//average the derivative at this point to prevent explosions and save on computations
 			scalar_matrix_multiply_f(d_der_vector, d_der_vector, 1.0 / batch_size, input_shape.size() * batch_size);
 		}
 
-		void softmax_cross_entropy::initialise(shape input_shape, size_t batch_size, int n_batches)
+		void softmax_cross_entropy::initialise(shape input_shape, size_t batch_size)
 		{
 			//call the base class initialiser
-			cost_function::initialise(input_shape, batch_size, n_batches);
+			cost_function::initialise(input_shape, batch_size);
 			//allocate the softmax pointer
 			allocate_device_float_pointer(&d_softmax, input_shape.size() * batch_size);
 		}

@@ -13,6 +13,8 @@
 
 #include "timer.h"
 
+#include "error_handling.h"
+
 using namespace std;
 
 using namespace nnet::util;

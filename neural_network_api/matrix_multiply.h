@@ -2,6 +2,7 @@
 
 #include "float_ops.h"
 #include "d_matrix.h"
+#include "error_handling.h"
 
 //define constants used in matrix multiplication
 

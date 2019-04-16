@@ -258,9 +258,7 @@ namespace nnet {
 		void matrix_multiply(d_matrix<m_T> & A, d_matrix<m_T> & B, d_matrix<m_T> & C)
 		{
 			//check the K dimensions line up, otherwise matrix multiplication is impossible
-			if (A.n_size != B.m_size) {
-				throw new exception("Cannot multiply matricies with different K dimensions");
-			}
+			ERR_ASSERT(A.n_size != B.m_size, "Cannot multiply matricies with different K dimensions");
 
 			//setup thread and block sizes from constants
 			dim3 threads_per_block(THREAD_SIZE_N, THREAD_SIZE_M);

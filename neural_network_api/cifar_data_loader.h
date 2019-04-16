@@ -8,6 +8,7 @@
 
 #include "batch_iterator.h"
 #include "instructions_kernel.h"
+#include "error_handling.h"
 
 /*
 FORMAT:
@@ -91,9 +92,7 @@ namespace nnet {
 
 				//if the file open fails for any reason throw an exception
 				//POSSIBLY REMOVE THIS AND JUST IGNORE THE FILE?
-				if (data_stream.fail()) {
-					throw new exception((string("Failed to load file ") + file_str).c_str());
-				}
+				ERR_ASSERT(data_stream.fail(), "Failed to load file: " << file_str);
 
 				//Get the length of the file
 				data_stream.seekg(0, data_stream.end);

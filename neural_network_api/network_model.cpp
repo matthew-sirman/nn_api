@@ -16,17 +16,13 @@ namespace nnet {
 	add_function* network_model::add(tensor biases)
 	{
 		//check that the entry shape is specified
-		if (!__ent_spec)
-			throw exception("Entry size not specified");
+		ERR_ASSERT(!__ent_spec, "Entry size not specified");
 
 		//create an add function
 		add_function* f = new add_function(biases);
 
-		//push the function into the instruction function list
-		instructions.push_back(f);
-
-		//push it to trainable functions as add functions are trainable
-		train_funcs.push_back(f);
+		//push the function to the initialiser list
+		graph_nodes.push_back(node<instruction_function*>(f));
 
 		return f;
 	}
@@ -34,21 +30,16 @@ namespace nnet {
 	matmul_function* network_model::matmul(tensor weights)
 	{
 		//check that the entry shape is specified
-		if (!__ent_spec)
-			throw exception("Entry size not specified");
+		ERR_ASSERT(!__ent_spec, "Entry size not specified");
 
 		//check the tensor is a matrix
-		if (weights.get_dimensions() != 2)
-			throw exception("Weight tensor must be two dimensional");
+		ERR_ASSERT(weights.get_dimensions() != 2, "Weight tensor must be two dimensional");
 
 		//create a matmul function
 		matmul_function* f = new matmul_function(weights);
 
-		//push the function into the instruction function list
-		instructions.push_back(f);
-
-		//push it to trainable functions as add functions are trainable
-		train_funcs.push_back(f);
+		//push the function to the initialiser list
+		graph_nodes.push_back(node<instruction_function*>(f));
 
 		//set the shape of the next layer to be the output shape from the matrix
 		this->init_layer_shape = shape(weights.get_shape()[0]);
@@ -58,8 +49,7 @@ namespace nnet {
 
 	dense_layer network_model::dense(size_t units, variable_initialiser weight_initialiser, variable_initialiser bias_initialiser) {
 		//check that the entry shape is specified
-		if (!__ent_spec)
-			throw exception("Entry size not specified");
+		ERR_ASSERT(!__ent_spec, "Entry size not specified");
 
 		//create a weight tensor with random sampling from a normal distribution
 		tensor weights = tensor::random_normal({ units, init_layer_shape.width }, weight_initialiser.mean, weight_initialiser.stddev);
@@ -82,8 +72,7 @@ namespace nnet {
 	conv2d_function* network_model::conv2d(shape filter_shape, size_t n_filters, padding_type padding, variable_initialiser initialiser)
 	{
 		//check that the entry shape is specified
-		if (!__ent_spec)
-			throw exception("Entry size not specified");
+		ERR_ASSERT(!__ent_spec, "Entry size not specified");
 
 		switch (padding) {
 		case padding_type::PADDING_VALID:
@@ -98,8 +87,7 @@ namespace nnet {
 	conv2d_function* network_model::conv2d(shape filter_shape, size_t n_filters, shape padding, variable_initialiser initialiser)
 	{
 		//check that the entry shape is specified
-		if (!__ent_spec)
-			throw exception("Entry size not specified");
+		ERR_ASSERT(!__ent_spec, "Entry size not specified");
 
 		//if the filter_shape depth is unset (so 1) work it out from the filter depth
 		size_t f_depth = filter_shape.depth;
@@ -116,21 +104,16 @@ namespace nnet {
 	conv2d_function* network_model::conv2d(tensor filter, shape padding)
 	{
 		//check that the entry shape is specified
-		if (!__ent_spec)
-			throw exception("Entry size not specified");
+		ERR_ASSERT(!__ent_spec, "Entry size not specified");
 
 		//check the filter has the right number of dimensions
-		if (filter.get_dimensions() != 4)
-			throw exception("Conv2d filter must be four dimensional (width, height, depth, filters)");
+		ERR_ASSERT(filter.get_dimensions() != 4, "Conv2d filter must be four dimensional (width, height, depth, filters)");
 
 		//create the conv2d function
 		conv2d_function * f = new conv2d_function(filter, padding);
 
-		//push the function into the instruction function list
-		instructions.push_back(f);
-
-		//push it to trainable functions as add functions are trainable
-		train_funcs.push_back(f);
+		//push the function to the initialiser list
+		graph_nodes.push_back(node<instruction_function*>(f));
 
 		//set the input shape of the function, which for conv2d will calculate
 		//the output shape
@@ -145,14 +128,13 @@ namespace nnet {
 	max_pool_function* network_model::max_pool(shape pool_size, shape stride)
 	{
 		//check that the entry shape is specified
-		if (!__ent_spec)
-			throw exception("Entry size not specified");
+		ERR_ASSERT(!__ent_spec, "Entry size not specified");
 
 		//create the max pool function
 		max_pool_function * f = new max_pool_function(pool_size, stride);
 
-		//push the function into the instruction function list
-		instructions.push_back(f);
+		//push the function to the initialiser list
+		graph_nodes.push_back(node<instruction_function*>(f));
 
 		//set the input shape of the function, which for max pool will calculate
 		//the output shape
@@ -167,14 +149,13 @@ namespace nnet {
 	flatten_function* network_model::flatten()
 	{
 		//check that the entry shape is specified
-		if (!__ent_spec)
-			throw exception("Entry size not specified");
+		ERR_ASSERT(!__ent_spec, "Entry size not specified");
 
 		//create the flatten function 
 		flatten_function * f = new flatten_function(init_layer_shape);
 
-		//push the function into the instruction function list
-		instructions.push_back(f);
+		//push the function to the initialiser list
+		graph_nodes.push_back(node<instruction_function*>(f));
 
 		//set the next layer shape to be the output shape
 		init_layer_shape = f->output_shape;
@@ -185,14 +166,13 @@ namespace nnet {
 	reshape_function* network_model::reshape(shape output_shape)
 	{
 		//check that the entry shape is specified
-		if (!__ent_spec)
-			throw exception("Entry size not specified");
+		ERR_ASSERT(!__ent_spec, "Entry size not specified");
 
 		//create the reshape function
 		reshape_function * f = new reshape_function(init_layer_shape, output_shape);
 
-		//push the function into the instruction function list
-		instructions.push_back(f);
+		//push the function to the initialiser list
+		graph_nodes.push_back(node<instruction_function*>(f));
 
 		//set the next layer shape to be the output shape
 		init_layer_shape = output_shape;
@@ -203,16 +183,15 @@ namespace nnet {
 	dropout_function* network_model::dropout(float keep_rate)
 	{
 		//check that the entry shape is specified
-		if (!__ent_spec)
-			throw exception("Entry size not specified");
+		ERR_ASSERT(!__ent_spec, "Entry size not specified");
 
 		//create the reshape function
 		dropout_function* f = new dropout_function(keep_rate);
 
 		f->set_input_shape(init_layer_shape);
 
-		//push the function into the instruction function list
-		instructions.push_back(f);
+		//push the function to the initialiser list
+		graph_nodes.push_back(node<instruction_function*>(f));
 
 		return f;
 	}
@@ -220,14 +199,13 @@ namespace nnet {
 	relu_function* network_model::relu()
 	{
 		//check that the entry shape is specified
-		if (!__ent_spec)
-			throw exception("Entry size not specified");
+		ERR_ASSERT(!__ent_spec, "Entry size not specified");
 
 		//create the relu function 
 		relu_function* f = new relu_function(init_layer_shape);
 
-		//push the function into the instruction function list
-		instructions.push_back(f);
+		//push the function to the initialiser list
+		graph_nodes.push_back(node<instruction_function*>(f));
 
 		return f;
 	}
@@ -235,14 +213,13 @@ namespace nnet {
 	leaky_relu_function* network_model::leaky_relu(float alpha)
 	{
 		//check that the entry shape is specified
-		if (!__ent_spec)
-			throw exception("Entry size not specified");
+		ERR_ASSERT(!__ent_spec, "Entry size not specified");
 		
 		//create the leaky relu function 
 		leaky_relu_function* f = new leaky_relu_function(init_layer_shape, alpha);
 
-		//push the function into the instruction function list
-		instructions.push_back(f);
+		//push the function to the initialiser list
+		graph_nodes.push_back(node<instruction_function*>(f));
 
 		return f;
 	}
@@ -250,14 +227,13 @@ namespace nnet {
 	tanh_function* network_model::tanh()
 	{
 		//check that the entry shape is specified
-		if (!__ent_spec)
-			throw exception("Entry size not specified");
+		ERR_ASSERT(!__ent_spec, "Entry size not specified");
 
 		//create the tanh function 
 		tanh_function* f = new tanh_function(init_layer_shape);
 
-		//push the function into the instruction function list
-		instructions.push_back(f);
+		//push the function to the initialiser list
+		graph_nodes.push_back(node<instruction_function*>(f));
 
 		return f;
 	}
@@ -265,14 +241,13 @@ namespace nnet {
 	sigmoid_function* network_model::sigmoid()
 	{
 		//check that the entry shape is specified
-		if (!__ent_spec)
-			throw exception("Entry size not specified");
+		ERR_ASSERT(!__ent_spec, "Entry size not specified");
 
 		//create the sigmoid function 
 		sigmoid_function* f = new sigmoid_function(init_layer_shape);
 
-		//push the function into the instruction function list
-		instructions.push_back(f);
+		//push the function to the initialiser list
+		graph_nodes.push_back(node<instruction_function*>(f));
 
 		return f;
 	}
@@ -280,16 +255,15 @@ namespace nnet {
 	instruction_function* network_model::function(instruction_function *func)
 	{
 		//check that the entry shape is specified
-		if (!__ent_spec)
-			throw exception("Entry size not specified");
+		ERR_ASSERT(!__ent_spec, "Entry size not specified");
 
-		//add the function passed in the the instructions
-		instructions.push_back(func);
+		//push the function to the initialiser list
+		graph_nodes.push_back(node<instruction_function*>(func));
 
 		return func;
 	}
 	
-	void network_model::add_logger(analytics logger)
+	void network_model::add_logger(analytics& logger)
 	{
 		analytics_logger = &logger;
 	}
@@ -301,41 +275,39 @@ namespace nnet {
 			return;
 
 		//check that there is a model to initialise
-		if (instructions.size() == 0)
-			throw std::exception("Cannot initialise empty model");
+		ERR_ASSERT(graph_nodes.size() == 0, "Cannot initialise empty model");
 
-		//initialise the largest layer size to 0
-		largest_layer_size = 0;
+		model_graph.add_node(&graph_nodes[0]);
 
-		//add the starting shape to the layer sizes
-		layer_shapes.push_back(instructions[0]->input_shape);
+		//set the graph entry
+		model_graph.set_start_point(&graph_nodes[0]);
 
-		for (int i = 0; i < instructions.size(); i++) {
-			//initialise the function
-			instructions[i]->initialise(batch_size);
+		//set up edges
+		for (int i = 1; i < graph_nodes.size(); i++) {
+			//get a reference to the current and previous nodes
+			node<instruction_function*>* n = &graph_nodes[i];
+			node<instruction_function*>* n_p = &graph_nodes[i - 1];
 
-			//add the function shape to the layer_shapes vector
-			layer_shapes.push_back(instructions[i]->output_shape);
+			//provide references for the nodes children and parents
+			n->parents.push_back(n_p);
+			n_p->children.push_back(n);
 
-			//if the current size is greater than the current largest, update the current largest
-			if (instructions[i]->input_shape.size() > largest_layer_size)
-				largest_layer_size = instructions[i]->input_shape.size();
+			//add this node to the graph
+			model_graph.add_node(n);
 		}
 
 		//get a reference to the output shape from the model
-		output_shape = instructions.back()->output_shape;
+		output_shape = graph_nodes.back().value->output_shape;
 
-		//if there is a cost function, initialise it
-		if (cost_func != nullptr)
-			cost_func->initialise(output_shape, batch_size, -1);
+		//set the graph exit
+		model_graph.set_end_point(&graph_nodes.back());
 
-		//if there is an output function, initialise it
-		if (output_func != nullptr)
-			output_func->initialise(output_shape, batch_size);
+		//initialise the graph
+		model_graph.initialise(output_shape, batch_size);
 
 		//if there is an optimiser, initialise it
 		if (opt != nullptr)
-			opt->initialise(train_funcs);
+			opt->initialise(&model_graph);
 
 		//save the batch size
 		this->batch_size = batch_size;
@@ -350,19 +322,6 @@ namespace nnet {
 		if (!model_initialised)
 			return;
 
-		//uninitalise each function in the model
-		for (int i = 0; i < instructions.size(); i++) {
-			instructions[i]->uninitialise();
-		}
-
-		//if there was a cost function, uninitialise it
-		if (cost_func != nullptr)
-			cost_func->uninitialise();
-
-		//if there was a output function, uninitialise it
-		if (output_func != nullptr)
-			output_func->uninitialise();
-
 		//if there was a optimiser, uninitialise it
 		if (opt != nullptr)
 			opt->uninitialise();
@@ -374,26 +333,19 @@ namespace nnet {
 	tensor network_model::run(tensor input)
 	{
 		//if the model is not initialised it can not be run, so throw an exception
-		if (!model_initialised)
-			throw exception("Model not initialised");
+		ERR_ASSERT(!model_initialised, "Model not initialised");
 
 		//initialise the input tensor in case it has not been initialised
 		input.initialise();
 
 		//declare pointers for batches, layers and outputs
-		float * d_in_batch, *d_in_layer, * d_out_layer, * d_output;
-
-		//falsely initialse the d_out_layer to avoid compiler errors
-		d_out_layer = new float();
+		float * d_in_batch, * d_output;
 
 		//get the number of inputs, which should be in the first dimension of the input tensor
 		size_t num = input.get_shape()[0];
 
-		//get the shape of the input to the model
-		shape input_shape = layer_shapes[0];
-
 		//allocate a placeholder pointer for the output of each batch
-		allocate_device_float_pointer(&d_output, num * output_shape.size());
+		allocate_device_float_pointer(&d_output, num * model_graph.get_output_shape().size());
 
 		//calculate the number of batches depending on the number of inputs and the batch size
 		int n_batches = ceil(num / (float)batch_size);
@@ -412,39 +364,15 @@ namespace nnet {
 			}
 
 			//set the placeholder pointer to be the input batch
-			d_in_batch = &input.get_dev_pointer()[batch * batch_size * input_shape.size()];
+			d_in_batch = &input.get_dev_pointer()[batch * batch_size * model_graph.get_input_shape().size()];
 
-			//set the first input layer to be the input
-			d_in_layer = d_in_batch;
-
-			//loop through each function in the model
-			for (int i = 0; i < instructions.size(); i++) {
-				//if this is a train only function, skip over it
-				if (instructions[i]->get_type() & instruction_function_type::TRAIN_ONLY)
-					continue;
-
-				//get a reference to the output from this layer
-				d_out_layer = instructions[i]->get_out_vector();
-
-				//reset the output vector to 0s for this layer
-				fill_device_array(d_out_layer, 0, instructions[i]->output_shape.size());
-
-				//run this layer with the given input
-				instructions[i]->run(d_in_layer, current_batch_size);
-
-				//set the next input to the output from this layer
-				d_in_layer = d_out_layer;
-			}
-
-			//if there is an output function, run the output from the instructions through this function
-			//and set the output to this new vector
-			if (output_func != nullptr) {
-				output_func->run(d_out_layer, current_batch_size);
-				d_out_layer = output_func->get_out_vector();
-			}
-
-			//copy the batch output into the full output
-			copy_into_device_array(d_out_layer, d_output, current_batch_size * output_shape.size(), batch * batch_size * output_shape.size());
+			//run the graph with the input data
+			run_graph(
+				model_graph, 
+				d_in_batch, 
+				&d_output[batch * batch_size * model_graph.get_output_shape().size()], 
+				current_batch_size
+			);
 		}
 
 		//allocate a host float pointer for the results
@@ -469,11 +397,14 @@ namespace nnet {
 		return *ret_tensor;
 	}
 	
-	void network_model::train(tensor train_x, tensor train_y, int epochs)
+	void network_model::train(tensor train_x, tensor train_y, int epochs, bool from_start)
 	{
 		//if the model is not initialised it can not be run, so throw an exception
-		if (!model_initialised)
-			throw exception("Model not initialised");
+		ERR_ASSERT(!model_initialised, "Model not initialised");
+
+		//if this model should train as if it was just started, set the step counter to 0
+		if (from_start)
+			__step = 0;
 
 		//initialise the input tensors in case they have not been initialised
 		train_x.initialise();
@@ -481,9 +412,6 @@ namespace nnet {
 
 		//get the number of inputs, which should be in the first dimension of the input tensor
 		size_t num = train_x.get_shape()[0];
-
-		//get the shape of the input to the model
-		shape input_shape = layer_shapes[0];
 
 		//calculate the number of batches depending on the number of inputs and the batch size
 		int n_batches = ceil(num / (float)batch_size);
@@ -496,9 +424,15 @@ namespace nnet {
 			analytics_logger->init_logging();
 		}
 
+		//get the starting epoch if we are not starting from scratch
+		int start_epoch = __step / n_batches;
+
+		//get the starting batch step if we are not starting from scratch
+		int start_batch = __step % n_batches;
+
 		//loop through each epoch. Every epoch represents training against the entire tensors
 		//specified
-		for (int epoch = 0; epoch < epochs; epoch++) {
+		for (int epoch = start_epoch; epoch < epochs; epoch++) {
 			//if there is a logger, call its "on epoch start" event, as this epoch is
 			//starting
 			if (analytics_logger != nullptr) {
@@ -506,7 +440,7 @@ namespace nnet {
 			}
 
 			//clear the loss metric in the cost function
-			cost_func->clear_loss();
+			model_graph.get_cost_function()->clear_loss();
 
 			//set the total loss for this epoch to 0
 			float epoch_loss = 0;
@@ -515,7 +449,7 @@ namespace nnet {
 			current_batch_size = batch_size;
 
 			//loop through each batch
-			for (int batch = 0; batch < n_batches; batch++) {
+			for (int batch = start_batch; batch < n_batches; batch++) {
 				//if there is a logger, call the "on step start" event, as this
 				//step is starting
 				if (analytics_logger != nullptr) {
@@ -530,29 +464,47 @@ namespace nnet {
 				}
 
 				//calculate the gradients for this entire batch with the batch read from the input tensors
-				calc_batch_gradient(
-					&train_x.get_dev_pointer()[batch * batch_size * input_shape.size()],
+				calculate_gradients(
+					model_graph,
+					&train_x.get_dev_pointer()[batch * batch_size * model_graph.get_input_shape().size()],
 					&train_y.get_dev_pointer()[batch * batch_size * output_shape.size()],
-					current_batch_size
+					current_batch_size,
+					METRIC_LOSS
 				);
 
 				//optimise the trainable functions in the network with the optimiser
 				opt->optimise();
 
 				//add the total loss for this batch to the epoch loss
-				epoch_loss += cost_func->get_average_loss() * current_batch_size;
+				epoch_loss += model_graph.get_cost_function()->get_average_loss() * current_batch_size;
 
 				//if there is a logger, call the "on step end" event function, as this step
 				//has just ended
 				if (analytics_logger != nullptr) {
-					analytics_logger->on_step_end(cost_func->get_average_loss());
+					analytics_logger->on_step_end(model_graph.get_cost_function()->get_average_loss());
+				}
+
+				__step++;
+
+				//if this is a checkpoint step
+				if (cpt & checkpoint_type::CHECKPOINT_PER_STEPS) {
+					if (__step % cpt_steps == 0)
+						__export_model_to_file(file_path, model_name);
 				}
 			}
+
+			//reset the starting batch so we don't miss necessary batches
+			start_batch = 0;
 
 			//if there is a logger, call the "on epoch end" event function, as this epoch has just
 			//ended
 			if (analytics_logger != nullptr) {
 				analytics_logger->on_epoch_end(epoch_loss / num);
+			}
+
+			//if there is epoch checkpointing
+			if (cpt & checkpoint_type::CHECKPOINT_PER_EPOCH) {
+				__export_model_to_file(file_path, model_name);
 			}
 		}
 
@@ -560,13 +512,21 @@ namespace nnet {
 		if (analytics_logger != nullptr) {
 			analytics_logger->end_logging();
 		}
+
+		//if saving at the end of the model is chosen
+		if (cpt & checkpoint_type::CHECKPOINT_END) {
+			__export_model_to_file(file_path, model_name);
+		}
 	}
 
-	void network_model::train(batch_iterator & b_iter, int epochs)
+	void network_model::train(batch_iterator & b_iter, int epochs, bool from_start)
 	{
 		//if the model is not initialised it can not be run, so throw an exception
-		if (!model_initialised)
-			throw exception("Model not initialised");
+		ERR_ASSERT(!model_initialised, "Model not initialised");
+
+		//if this model should train as if it was just started, set the step counter to 0
+		if (from_start)
+			__step = 0;
 
 		//initialise the iterator with the same batch size as the model
 		b_iter.initialise(batch_size);
@@ -585,9 +545,15 @@ namespace nnet {
 			analytics_logger->init_logging();
 		}
 
+		//get the starting epoch if we are not starting from scratch
+		int start_epoch = __step / n_batches;
+
+		//get the starting batch step if we are not starting from scratch
+		int start_batch = __step % n_batches;
+
 		//loop through each epoch. Every epoch represents training against the entire iterator
 		//specified
-		for (int epoch = 0; epoch < epochs; epoch++) {
+		for (int epoch = start_epoch; epoch < epochs; epoch++) {
 			//if there is a logger, call its "on epoch start" event, as this epoch is
 			//starting
 			if (analytics_logger != nullptr) {
@@ -595,7 +561,7 @@ namespace nnet {
 			}
 
 			//clear the loss metric in the cost function
-			cost_func->clear_loss();
+			model_graph.get_cost_function()->clear_loss();
 
 			//set the total loss for this epoch to 0
 			float epoch_loss = 0;
@@ -634,24 +600,37 @@ namespace nnet {
 
 				//calculate the gradients for this entire batch with the tensors loaded
 				//from the iterator
-				calc_batch_gradient(
+				calculate_gradients(
+					model_graph,
 					train_x->get_dev_pointer(),
 					train_y->get_dev_pointer(),
-					current_batch_size
+					current_batch_size,
+					METRIC_LOSS
 				);
 
 				//optimise the trainable functions in the network with the optimiser
 				opt->optimise();
 
 				//add the total loss for this batch to the epoch loss
-				epoch_loss += cost_func->get_average_loss() * current_batch_size;
+				epoch_loss += model_graph.get_cost_function()->get_average_loss() * current_batch_size;
 
 				//if there is a logger, call the "on step end" event function, as this step
 				//has just ended
 				if (analytics_logger != nullptr) {
-					analytics_logger->on_step_end(cost_func->get_average_loss());
+					analytics_logger->on_step_end(model_graph.get_cost_function()->get_average_loss());
+				}
+
+				__step++;
+
+				//if this is a checkpoint step
+				if (cpt & checkpoint_type::CHECKPOINT_PER_STEPS) {
+					if (__step % cpt_steps == 0)
+						__export_model_to_file(file_path, model_name);
 				}
 			}
+
+			//reset the starting batch so we don't miss necessary batches
+			start_batch = 0;
 
 			//reset the iterator back to the beginning ready for the next epoch
 			b_iter.reset_iterator();
@@ -661,34 +640,40 @@ namespace nnet {
 			if (analytics_logger != nullptr) {
 				analytics_logger->on_epoch_end(epoch_loss / num);
 			}
+
+			//if there is epoch checkpointing
+			if (cpt & checkpoint_type::CHECKPOINT_PER_EPOCH) {
+				__export_model_to_file(file_path, model_name);
+			}
 		}
 
 		//if there is a logger, call the end_logging() function to stop logging
 		if (analytics_logger != nullptr) {
 			analytics_logger->end_logging();
 		}
+
+		//if saving at the end of the model is chosen
+		if (cpt & checkpoint_type::CHECKPOINT_END) {
+			__export_model_to_file(file_path, model_name);
+		}
 	}
 
 	float network_model::evaluate(tensor test_x, tensor test_y)	{
 		//if the model is not initialised it can not be run, so throw an exception
-		if (!model_initialised)
-			throw exception("Model not initialised");
+		ERR_ASSERT(!model_initialised, "Model not initialised");
 
 		//initialise the input tensors in case they have not been initialised
 		test_x.initialise();
 		test_y.initialise();
 
 		//declare pointers for batches, layers and outputs
-		float * d_in_batch, *d_in_layer, *d_out_layer;
+		float * d_in_batch, *d_out_layer;
 
-		//falsely initialse the d_out_layer to avoid compiler errors
-		d_out_layer = new float();
+		//initialise the output layer placeholder
+		allocate_device_float_pointer(&d_out_layer, batch_size * output_shape.size());
 
 		//get the number of inputs, which should be in the first dimension of the input tensor
 		size_t num = test_x.get_shape()[0];
-
-		//get the shape of the input to the model
-		shape input_shape = layer_shapes[0];
 
 		//calculate the number of batches depending on the number of inputs and the batch size
 		int n_batches = ceil(num / (float)batch_size);
@@ -716,29 +701,14 @@ namespace nnet {
 			}
 
 			//set the placeholder pointer to be the input batch
-			d_in_batch = &test_x.get_dev_pointer()[batch * batch_size * input_shape.size()];
+			d_in_batch = &test_x.get_dev_pointer()[batch * batch_size * model_graph.get_input_shape().size()];
 
-			//set the first input layer to be the input
-			d_in_layer = d_in_batch;
-
-			//loop through each function in the model
-			for (int i = 0; i < instructions.size(); i++) {
-				//if this is a train only function, skip over it
-				if (instructions[i]->get_type() & instruction_function_type::TRAIN_ONLY)
-					continue;
-
-				//get a reference to the output from this layer
-				d_out_layer = instructions[i]->get_out_vector();
-
-				//reset the output vector to 0s for this layer
-				fill_device_array(d_out_layer, 0, batch_size * instructions[i]->output_shape.size());
-
-				//run this layer with the given input
-				instructions[i]->run(d_in_layer, current_batch_size);
-
-				//set the next input to the output from this layer
-				d_in_layer = d_out_layer;
-			}
+			run_graph(
+				model_graph,
+				d_in_batch,
+				d_out_layer,
+				current_batch_size
+			);
 
 			//calculate no. correct values
 
@@ -784,17 +754,16 @@ namespace nnet {
 	float network_model::evaluate(batch_iterator & b_iter)
 	{
 		//if the model is not initialised it can not be run, so throw an exception
-		if (!model_initialised)
-			throw exception("Model not initialised");
+		ERR_ASSERT(!model_initialised, "Model not initialised");
 
 		//initialise the iterator with the same batch size as the model
 		b_iter.initialise(batch_size);
 
 		//declare pointers for batches, layers and outputs
-		float * d_in_batch, *d_in_layer, *d_out_layer;
+		float * d_in_batch, *d_out_layer;
 
-		//falsely initialse the d_out_layer to avoid compiler errors
-		d_out_layer = new float();
+		//initialise the output layer placeholder
+		allocate_device_float_pointer(&d_out_layer, batch_size * output_shape.size());
 
 		//get the number of inputs, which is known by the iterator
 		size_t num = b_iter.get_size();
@@ -830,27 +799,12 @@ namespace nnet {
 			//get the next batch data
 			d_in_batch = b_iter.get_next_batch()->get_dev_pointer();
 
-			//set the first input layer to be the input
-			d_in_layer = d_in_batch;
-
-			//loop through each function in the model
-			for (int i = 0; i < instructions.size(); i++) {
-				//if this is a train only function, skip over it
-				if (instructions[i]->get_type() & instruction_function_type::TRAIN_ONLY)
-					continue;
-
-				//get a reference to the output from this layer
-				d_out_layer = instructions[i]->get_out_vector();
-
-				//reset the output vector to 0s for this layer
-				fill_device_array(d_out_layer, 0, batch_size * instructions[i]->output_shape.size());
-
-				//run this layer with the given input
-				instructions[i]->run(d_in_layer, current_batch_size);
-
-				//set the next input to the output from this layer
-				d_in_layer = d_out_layer;
-			}
+			run_graph(
+				model_graph,
+				d_in_batch,
+				d_out_layer,
+				current_batch_size
+			);
 
 			//calculate no. correct values
 
@@ -895,47 +849,13 @@ namespace nnet {
 		return total_correct / (float)num;
 	}
 
-	void network_model::write_model_to_file(string model_folder, string model_name)
+	void network_model::export_model_to_file(string model_folder, string model_name)
 	{
-		//create the directory to save the model in (only works for Windows afaik)
-		CreateDirectoryA((LPCSTR)(model_folder + "\\" + model_name).c_str(), NULL);
-
-		//create a byte stream to write out to the .model file
-		ofstream data_stream(model_folder + "\\" + model_name + "\\" + model_name + ".model", ofstream::binary);
-
-		//get the number of instructions in the model
-		int i_size = instructions.size();
-
-		//write the number of instructions to the beginning of the file
-		data_stream.write((char *)&i_size, sizeof(int));
-
-		//loop through each layer in the model
-		for (int layer = 0; layer < i_size; layer++) {
-			//get a temporary reference to the layer function
-			instruction_function * i_func = instructions[layer];
-
-			//get the size which this function will stream to (in bytes)
-			size_t stream_size = i_func->get_serialise_size();
-
-			//allocate a buffer to serialise the function into
-			char * stream_buffer = (char *)malloc(stream_size);
-
-			//serialise the function into the beginning of this buffer
-			i_func->serialise(stream_buffer, 0);
-
-			//write the stream size for this function to the file, so when it is reloaded the reader knows how far
-			//to read for this function
-			data_stream.write(reinterpret_cast<char*>(reinterpret_cast<void*>(&stream_size)), sizeof(size_t));
-
-			//write the serialised buffer to the file stream
-			data_stream.write(stream_buffer, stream_size);
-		}
-
-		//close the file stream as we are now finished writing
-		data_stream.close();
+		//call the internal export function
+		__export_model_to_file(model_folder, model_name);
 	}
 	
-	network_model network_model::load_model_from_file(string model_folder, string model_name)
+	network_model network_model::import_model_from_file(string model_folder, string model_name)
 	{
 		//create a model instance
 		network_model * model = new network_model();
@@ -975,7 +895,7 @@ namespace nnet {
 			function_id func_id = *reinterpret_cast<function_id*>(reinterpret_cast<void*>(&data_buff[0]));
 
 			//declare a pointer for the current function
-			instruction_function * f;
+			instruction_function * f = nullptr;
 
 			//switch the id and create the matching function
 			//type and deserialise it to set it up from the buffer
@@ -1025,12 +945,7 @@ namespace nnet {
 			}
 
 			//add the function to the instructions vector
-			model->instructions.push_back(f);
-
-			//if the function is alos trainable, add it to the train functions
-			//vector too
-			if (f->get_type() & instruction_function_type::TRAINABLE)
-				model->train_funcs.push_back((trainable_function *)f);
+			model->graph_nodes.push_back(node<instruction_function*>(f));
 
 			//free the placeholder vector
 			free(data_buff);
@@ -1038,88 +953,82 @@ namespace nnet {
 
 		//close the data stream as we are finished reading
 		data_stream.close();
+		
+		//open the checkpoint file
+		ifstream checkpoint_stream(model_folder + "\\" + model_name + "\\" + model_name + ".checkpoint", ifstream::binary);
+
+		//check that the file exists to compensate for older versions without checkpointing
+		if (!checkpoint_stream.fail()) {
+			//get the total length of the file
+			checkpoint_stream.seekg(0, checkpoint_stream.end);
+			size_t cpt_length = checkpoint_stream.tellg();
+			checkpoint_stream.seekg(0, checkpoint_stream.beg);
+
+			//if the file contains at least an int, read it into steps
+			if (cpt_length > sizeof(int)) {
+				checkpoint_stream.read((char*)model->__step, sizeof(int));
+			}
+		}
 
 		//return the object at the model pointer
 		return *model;
 	}
 	
-	void network_model::calc_batch_gradient(float * d_x_batch, float * d_y_batch, size_t current_batch_size)
+	void network_model::set_checkpoint(int c_type, string model_folder, string model_name, int steps)
 	{
-		//set the first input layer to be the input
-		float * d_in_layer = d_x_batch;
+		//set parameters from input
+		this->cpt = c_type;
+		this->file_path = model_folder;
+		this->model_name = model_name;
+		this->cpt_steps = steps;
+	}
 
-		//loop through each function in the model
-		for (int i = 0; i < instructions.size(); i++) {
-			//get a reference to the current instruction
-			instruction_function * i_func = instructions[i];
+	void network_model::__export_model_to_file(string model_folder, string model_name)
+	{
+		//create the directory to save the model in (only works for Windows afaik)
+		CreateDirectoryA((LPCSTR)(model_folder + "\\" + model_name).c_str(), NULL);
 
-			//get a reference to the output from this layer
-			float * d_out_layer = i_func->get_out_vector();
+		//create a byte stream to write out to the .model file
+		ofstream data_stream(model_folder + "\\" + model_name + "\\" + model_name + ".model", ofstream::binary);
 
-			//reset the output vector to 0s for this layer
-			cuda_safe_call(cudaMemset(d_out_layer, 0, sizeof(float) * i_func->output_shape.size() * current_batch_size));
+		//get the number of instructions in the model
+		int i_size = graph_nodes.size();
 
-			//run this layer with the given input
-			i_func->run(d_in_layer, current_batch_size);
+		//write the number of instructions to the beginning of the file
+		data_stream.write((char*)& i_size, sizeof(int));
 
-			//run the derivative function for this layer to calculate relevant
-			//information for back propagation
-			i_func->run_derivative(d_in_layer);
+		//loop through each layer in the model
+		for (int layer = 0; layer < i_size; layer++) {
+			//get a temporary reference to the layer function
+			instruction_function* i_func = graph_nodes[layer].value;
 
-			//if the function is trainable
-			if (i_func->get_type() & instruction_function_type::TRAINABLE) {
-				//get a reference to the function as a trainiable function
-				trainable_function * t_func = (trainable_function *)i_func;
+			//get the size which this function will stream to (in bytes)
+			size_t stream_size = i_func->get_serialise_size();
 
-				//if the function isn't locked, run the training derivative function
-				//to calculate relevant information for training this function
-				if (!t_func->locked())
-					t_func->run_train_derivative(d_in_layer, current_batch_size);
-			}
+			//allocate a buffer to serialise the function into
+			char* stream_buffer = (char*)malloc(stream_size);
 
-			//set the next input to the output from this layer
-			d_in_layer = d_out_layer;
+			//serialise the function into the beginning of this buffer
+			i_func->serialise(stream_buffer, 0);
+
+			//write the stream size for this function to the file, so when it is reloaded the reader knows how far
+			//to read for this function
+			data_stream.write(reinterpret_cast<char*>(reinterpret_cast<void*>(&stream_size)), sizeof(size_t));
+
+			//write the serialised buffer to the file stream
+			data_stream.write(stream_buffer, stream_size);
 		}
 
-		//calculate the loss between the expected and observed results
-		cost_func->cost(instructions.back()->get_out_vector(), d_y_batch, current_batch_size);
+		//close the file stream as we are now finished writing
+		data_stream.close();
 
-		//the current derivative value at each step i.e df1/df2 * df2/df3 * ... * dfn-1/dfn
-		//needs to be the size of the largest layer * batch size
-		float * d_current_layer_cr_derivative;
+		//create a byte stream to write out to the .checkpoint file
+		ofstream checkpoint_stream(model_folder + "\\" + model_name + "\\" + model_name + ".checkpoint", ofstream::binary);
 
-		//allocate the current derivatives pointer
-		allocate_device_float_pointer(&d_current_layer_cr_derivative, largest_layer_size * current_batch_size);
+		//write the current step
+		checkpoint_stream.write((char*)&__step, sizeof(int));
 
-		//work out the derivative between the distributions
-		cost_func->cost_derivative(instructions.back()->get_out_vector(), d_y_batch, current_batch_size);
-
-		//copy the derivative from the cost function into the current derivatives vector
-		copy_into_device_array(cost_func->get_derivative_vector(), d_current_layer_cr_derivative, cost_func->get_size() * current_batch_size, 0);
-
-		//loop through each function in reverse order
-		for (int i = instructions.size() - 1; i >= 0; i--) {
-			//get a reference to the current instruction function
-			instruction_function * i_func = instructions[i];
-
-			//if the function is trainable...
-			if (i_func->get_type() & instruction_function_type::TRAINABLE) {
-				//get a trainable reference
-				trainable_function * t_func = (trainable_function *)i_func;
-
-				//if the function isn't locked, calculate the derivatives with reference to the 
-				//training parameters
-				if (!t_func->locked())
-					t_func->avg_partial_derivatives(d_current_layer_cr_derivative, current_batch_size);
-			}
-
-			//if this isn't the last layer, find the derivatives for the previous layer for back
-			//propagation
-			if (i != 0)
-				i_func->back_propagate(d_current_layer_cr_derivative, current_batch_size);
-		}
-		
-		//dereference the placeholder pointer
-		deallocate_device_float_pointer(d_current_layer_cr_derivative);
+		//close the filestream
+		checkpoint_stream.close();
 	}
 }

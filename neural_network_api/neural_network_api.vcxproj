@@ -54,7 +54,7 @@
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
-    <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 10.1.props" />
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 10.0.props" />
   </ImportGroup>
   <ImportGroup Label="Shared">
   </ImportGroup>
@@ -114,12 +114,14 @@
       <AdditionalLibraryDirectories>D:\boost_1_69_0\stage\lib;%(AdditionalLibraryDirectories);C:\opencv\build\x64\vc14\lib</AdditionalLibraryDirectories>
     </Link>
     <CudaCompile>
-      <Include>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\lib\x64</Include>
+      <Include>
+      </Include>
       <TargetMachinePlatform>64</TargetMachinePlatform>
       <CodeGeneration>compute_50,sm_50</CodeGeneration>
     </CudaCompile>
     <CudaLink>
-      <AdditionalLibraryDirectories>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\lib\x64</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>
+      </AdditionalLibraryDirectories>
     </CudaLink>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -164,12 +166,14 @@
       <AdditionalLibraryDirectories>D:\boost_1_69_0\stage\lib;%(AdditionalLibraryDirectories);C:\opencv\build\x64\vc14\lib</AdditionalLibraryDirectories>
     </Link>
     <CudaCompile>
-      <Include>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\lib\x64</Include>
+      <Include>
+      </Include>
       <TargetMachinePlatform>64</TargetMachinePlatform>
       <CodeGeneration>compute_50,sm_50</CodeGeneration>
     </CudaCompile>
     <CudaLink>
-      <AdditionalLibraryDirectories>C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\lib\x64</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>
+      </AdditionalLibraryDirectories>
     </CudaLink>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -179,6 +183,7 @@
     <ClInclude Include="conv_ops_2d.h" />
     <ClInclude Include="cost_functions.h" />
     <ClInclude Include="d_matrix.h" />
+    <ClInclude Include="error_handling.h" />
     <ClInclude Include="graph.h" />
     <ClInclude Include="heirarchy_image_loader.h" />
     <ClInclude Include="instructions_kernel.h" />
@@ -190,6 +195,8 @@
     <ClInclude Include="mnist_data_loader.h" />
     <ClInclude Include="network_model.h" />
     <ClInclude Include="nn_ops.h" />
+    <ClInclude Include="node.h" />
+    <ClInclude Include="operation.h" />
     <ClInclude Include="optimisers.h" />
     <ClInclude Include="optimiser_kernel.h" />
     <ClInclude Include="output_functions.h" />
@@ -205,7 +212,6 @@
     <ClCompile Include="analytics.cpp" />
     <ClCompile Include="cost_functions.cpp" />
     <ClCompile Include="dllmain.cpp" />
-    <ClCompile Include="graph.cpp" />
     <ClCompile Include="heirarchy_image_loader.cpp" />
     <ClCompile Include="instruction_functions.cpp" />
     <ClCompile Include="mnist_data_loader.cpp" />
@@ -233,6 +239,6 @@
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
-    <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 10.1.targets" />
+    <Import Project="$(VCTargetsPath)\BuildCustomizations\CUDA 10.0.targets" />
   </ImportGroup>
 </Project>

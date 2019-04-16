@@ -51,8 +51,8 @@ namespace nnet {
 			//allocate the output vector pointer
 			allocate_device_float_pointer(&d_out_vector, output_shape.size() * batch_size);
 
-			//set the batch size from the input
-			this->batch_size = batch_size;
+			//allocate the derivative output vector pointer
+			allocate_device_float_pointer(&d_out_derivatives, input_shape.size() * batch_size);
 
 			//flag that this function is initialised fully
 			initialised = true;
@@ -62,6 +62,9 @@ namespace nnet {
 		{
 			//destroy the output vector pointer and free the memory
 			deallocate_device_float_pointer(d_out_vector);
+
+			//destroy the derivative output vector pointer
+			deallocate_device_float_pointer(d_out_derivatives);
 
 			//flag this function is uninitialised
 			initialised = false;
@@ -96,7 +99,7 @@ namespace nnet {
 
 		float* instruction_function::get_derivative_vector()
 		{
-			return d_der_vector;
+			return d_out_derivatives;
 		}
 
 		trainable_function::trainable_function(tensor t)
@@ -105,9 +108,6 @@ namespace nnet {
 			//initialise the derivatives tensor to be 0s with the same shape as the
 			//training tensor
 			derivatives = tensor::zeros(t.get_shape());
-
-			//flag this function as trainable
-			type |= instruction_function_type::TRAINABLE;
 		}
 
 		void trainable_function::initialise(size_t batch_size)
@@ -186,10 +186,20 @@ namespace nnet {
 			instruction_function::~instruction_function();
 		}
 
-		void add_function::run(float* input, size_t batch_size)
+		void add_function::run()
 		{
 			//add the input matrix to the train tensor matrix
-			add_matrices(input, d_out_vector, train_tensor.get_dev_pointer(), input_shape.size(), batch_size);
+			add_matrices(feed_data, d_out_vector, train_tensor.get_dev_pointer(), input_shape.size(), batch_size);
+		}
+
+		void add_function::back_propagate()
+		{
+			//copy the input derivatives to the output (as they are unchanged)
+			cuda_safe_call(cudaMemcpy(d_out_derivatives, d_partial_derivatives, sizeof(float) * input_shape.size() * batch_size, cudaMemcpyDeviceToDevice));
+
+			//if the function isn't locked calculate the partial derivativess
+			if (!locked())
+				avg_partial_derivatives();
 		}
 
 		void add_function::initialise(size_t batch_size)
@@ -216,10 +226,10 @@ namespace nnet {
 			deallocate_device_float_pointer(d_derivatives);
 		}
 
-		void add_function::avg_partial_derivatives(float* current_pds, size_t batch_size)
+		void add_function::avg_partial_derivatives()
 		{
 			//average all the partial derivatives and write them to the derivative tensor
-			average_vector(current_pds, derivatives.get_dev_pointer(), input_shape.size(), batch_size, 1);
+			average_vector(d_partial_derivatives, derivatives.get_dev_pointer(), input_shape.size(), batch_size, 1);
 		}
 
 		void add_function::serialise(char* stream_buffer, size_t offset)
@@ -250,35 +260,35 @@ namespace nnet {
 			instruction_function::~instruction_function();
 		}
 
-		void matmul_function::run(float* input, size_t batch_size)
+		void matmul_function::run()
 		{
 			//make a placeholder matrix to pass into the multiply function
-			d_matrix<float> B(batch_size, input_shape.width, input);
+			d_matrix<float> B(batch_size, input_shape.width, feed_data);
 
 			//multiply the weight matrix by the input matrix and write into the output matrix
 			matrix_multiply<float, mat_order::MAT_ORDER_ROW, mat_order::MAT_ORDER_COL, mat_order::MAT_ORDER_COL>(
 				d_mat,
 				B,
 				d_out_vec
-				);
+			);
+
+			//ff we are training
+			if (phase == PHASE_TRAINING) {
+				//cache the input at this point into the partial derivative vector as it will be
+				//needed for back propagation
+				copy_into_device_array(feed_data, d_pder_vector, input_shape.width * batch_size, 0);
+			}
 		}
 
-		void matmul_function::run_train_derivative(float* input, size_t batch_size)
+		void matmul_function::back_propagate()
 		{
-			//cache the input at this point into the partial derivative vector as it will be
-			//needed for back propagation
-			copy_into_device_array(input, d_pder_vector, input_shape.width * batch_size, 0);
-		}
-
-		void matmul_function::back_propagate(float* current_pds, size_t batch_size)
-		{
-			//fill the temporary vector with 0s before multiplying
-			cuda_safe_call(cudaMemset(d_bp_temp, 0, sizeof(float) * input_shape.width * batch_size));
+			//fill the out vector with 0s before multiplying
+			cuda_safe_call(cudaMemset(d_out_derivatives, 0, sizeof(float) * input_shape.width * batch_size));
 
 			//create placeholder matrices for multiplying on the device
 			d_matrix<float> A({ output_shape.width, input_shape.width, get_train_vector() });
-			d_matrix<float> B({ batch_size, output_shape.width, current_pds });
-			d_matrix<float> C({ batch_size, input_shape.width, d_bp_temp });
+			d_matrix<float> B({ batch_size, output_shape.width, d_partial_derivatives });
+			d_matrix<float> C({ batch_size, input_shape.width, d_out_derivatives });
 
 			//multiply the two matrices A and B and write the product to C
 			matrix_multiply<float, mat_order::MAT_ORDER_COL, mat_order::MAT_ORDER_COL, mat_order::MAT_ORDER_COL>(
@@ -287,8 +297,9 @@ namespace nnet {
 				C
 				);
 
-			//copy the temporary pointer back into the current partial derivatives
-			copy_into_device_array(d_bp_temp, current_pds, batch_size * input_shape.width, 0);
+			//if the function isn't locked calculate the partial derivativess
+			if (!locked())
+				avg_partial_derivatives();
 		}
 
 		void matmul_function::initialise(size_t batch_size)
@@ -298,7 +309,6 @@ namespace nnet {
 
 			//allocate the relevant pointers needed for this function
 			allocate_device_float_pointer(&d_pder_vector, input_shape.width * batch_size);
-			allocate_device_float_pointer(&d_bp_temp, input_shape.width * batch_size);
 
 			//set the derivative vector equal to the train tensor's pointer
 			d_der_vector = train_tensor.get_dev_pointer();
@@ -312,15 +322,12 @@ namespace nnet {
 		{
 			//uninitialise the base function
 			trainable_function::uninitialise();
-
-			//destroy the pointers which are no longer required
-			deallocate_device_float_pointer(d_bp_temp);
 		}
 
-		void matmul_function::avg_partial_derivatives(float* current_pds, size_t batch_size)
+		void matmul_function::avg_partial_derivatives()
 		{
 			//create placeholder matrices for multiplying on the device
-			d_matrix<float> A({ batch_size, output_shape.width, current_pds });
+			d_matrix<float> A({ batch_size, output_shape.width, d_partial_derivatives });
 			d_matrix<float> B({ input_shape.width, batch_size, d_pder_vector });
 			d_matrix<float> C({ input_shape.width, output_shape.width, derivatives.get_dev_pointer() });
 
@@ -352,22 +359,22 @@ namespace nnet {
 			instruction_function::~instruction_function();
 		}
 
-		void relu_function::run(float* input, size_t batch_size)
+		void relu_function::run()
 		{
 			//apply elementwise ReLU activation over the input vector
-			apply_relu(input, d_out_vector, input_shape.size() * batch_size, 0);
+			apply_relu(feed_data, d_out_vector, input_shape.size() * batch_size, 0);
+
+			//if we are training
+			if (phase == PHASE_TRAINING) {
+				//calculate the derivatives vector from the inputs
+				relu_derivative(feed_data, d_der_vector, input_shape.size() * batch_size, 0);
+			}
 		}
 
-		void relu_function::run_derivative(float* input)
-		{
-			//calculate the derivatives vector from the inputs
-			relu_derivative(input, d_der_vector, input_shape.size() * batch_size, 0);
-		}
-
-		void relu_function::back_propagate(float* current_pds, size_t batch_size)
+		void relu_function::back_propagate()
 		{
 			//multiply the current partial derivatives with the calculated derivative vectors elementwise
-			hadamard_product(current_pds, get_derivative_vector(), current_pds, input_shape.size() * batch_size);
+			hadamard_product(d_partial_derivatives, d_der_vector, d_out_derivatives, input_shape.size() * batch_size);
 		}
 
 		void relu_function::initialise(size_t batch_size)
@@ -409,22 +416,22 @@ namespace nnet {
 			instruction_function::~instruction_function();
 		}
 
-		void leaky_relu_function::run(float* input, size_t batch_size)
+		void leaky_relu_function::run()
 		{
 			//apply elementwise leaky relu over the input elementwise
-			apply_relu(input, d_out_vector, input_shape.size() * batch_size, alpha);
+			apply_relu(feed_data, d_out_vector, input_shape.size() * batch_size, alpha);
+
+			//if we are training
+			if (phase == PHASE_TRAINING) {
+				//calculate the derivatives vector from the inputs
+				relu_derivative(feed_data, d_der_vector, input_shape.size() * batch_size, alpha);
+			}
 		}
 
-		void leaky_relu_function::run_derivative(float* input)
-		{
-			//calculate the derivatives vector from the inputs
-			relu_derivative(input, d_der_vector, input_shape.size() * batch_size, alpha);
-		}
-
-		void leaky_relu_function::back_propagate(float* current_pds, size_t batch_size)
+		void leaky_relu_function::back_propagate()
 		{
 			//multiply the current partial derivatives with the calculated derivative vectors elementwise
-			hadamard_product(current_pds, get_derivative_vector(), current_pds, input_shape.size() * batch_size);
+			hadamard_product(d_partial_derivatives, d_der_vector, d_out_derivatives, input_shape.size() * batch_size);
 		}
 
 		void leaky_relu_function::initialise(size_t batch_size)
@@ -484,22 +491,22 @@ namespace nnet {
 			instruction_function::~instruction_function();
 		}
 
-		void tanh_function::run(float* input, size_t batch_size)
+		void tanh_function::run()
 		{
 			//apply elementwise Tanh activation over the input vector
-			apply_tanh(input, d_out_vector, input_shape.size() * batch_size);
+			apply_tanh(feed_data, d_out_vector, input_shape.size() * batch_size);
+
+			//if we are training
+			if (phase == PHASE_TRAINING) {
+				//calculate the derivatives vector from the inputs
+				tanh_derivative(feed_data, d_der_vector, input_shape.size() * batch_size);
+			}
 		}
 
-		void tanh_function::run_derivative(float* input)
-		{
-			//calculate the derivatives vector from the inputs
-			tanh_derivative(input, d_der_vector, input_shape.size() * batch_size);
-		}
-
-		void tanh_function::back_propagate(float* current_pds, size_t batch_size)
+		void tanh_function::back_propagate()
 		{
 			//multiply the current partial derivatives with the calculated derivative vectors elementwise
-			hadamard_product(current_pds, get_derivative_vector(), current_pds, input_shape.size() * batch_size);
+			hadamard_product(d_partial_derivatives, d_der_vector, d_out_derivatives, input_shape.size() * batch_size);
 		}
 
 		void tanh_function::initialise(size_t batch_size)
@@ -539,22 +546,22 @@ namespace nnet {
 			instruction_function::~instruction_function();
 		}
 
-		void sigmoid_function::run(float* input, size_t batch_size)
+		void sigmoid_function::run()
 		{
 			//apply elementwise Sigmoid activation over the input vector
-			apply_sigmoid(input, d_out_vector, input_shape.size() * batch_size);
+			apply_sigmoid(feed_data, d_out_vector, input_shape.size() * batch_size);
+
+			//if we are training
+			if (phase == PHASE_TRAINING) {
+				//calculate the derivatives vector from the inputs
+				sigmoid_derivative(feed_data, d_der_vector, input_shape.size() * batch_size);
+			}
 		}
 
-		void sigmoid_function::run_derivative(float* input)
-		{
-			//calculate the derivatives vector from the inputs
-			sigmoid_derivative(input, d_der_vector, input_shape.size() * batch_size);
-		}
-
-		void sigmoid_function::back_propagate(float* current_pds, size_t batch_size)
+		void sigmoid_function::back_propagate()
 		{
 			//multiply the current partial derivatives with the calculated derivative vectors elementwise
-			hadamard_product(current_pds, get_derivative_vector(), current_pds, input_shape.size() * batch_size);
+			hadamard_product(d_partial_derivatives, d_der_vector, d_out_derivatives, input_shape.size() * batch_size);
 		}
 
 		void sigmoid_function::initialise(size_t batch_size)
@@ -588,17 +595,12 @@ namespace nnet {
 		}
 
 		//NOT IMPLEMENTED
-		void batch_normalisation_function::run(float* input, size_t batch_size)
+		void batch_normalisation_function::run()
 		{
 		}
 
 		//NOT IMPLEMENTED
-		void batch_normalisation_function::run_derivative(float* input)
-		{
-		}
-
-		//NOT IMPLEMENTED
-		void batch_normalisation_function::back_propagate(float* current_pds, size_t batch_size)
+		void batch_normalisation_function::back_propagate()
 		{
 		}
 
@@ -636,19 +638,16 @@ namespace nnet {
 			: trainable_function(filter)
 		{
 			//check that the filter has 4 dimensions (Width, Height, Depth, Num of Filters)
-			if (filter.get_dimensions() == 4) {
-				//set the filter shape to the first 3 dimensions
-				this->filter_shape = shape(filter.get_shape()[0], filter.get_shape()[1], filter.get_shape()[2]);
+			ERR_ASSERT(filter.get_dimensions() != 4, "Conv2d filter must be four dimensional (width, height, depth, filters)");
 
-				//set the output shape depth to the number of filters
-				this->output_shape.depth = filter.get_shape()[3];
+			//set the filter shape to the first 3 dimensions
+			this->filter_shape = shape(filter.get_shape()[0], filter.get_shape()[1], filter.get_shape()[2]);
 
-				//set the local padding variable
-				this->padding = padding;
-			}
-			else {
-				throw new exception("Conv2d filter must be four dimensional (width, height, depth, filters)");
-			}
+			//set the output shape depth to the number of filters
+			this->output_shape.depth = filter.get_shape()[3];
+
+			//set the local padding variable
+			this->padding = padding;
 		}
 
 		conv2d_function::~conv2d_function()
@@ -657,11 +656,13 @@ namespace nnet {
 			trainable_function::~trainable_function();
 		}
 
-		void conv2d_function::run(float* input, size_t batch_size)
+		void conv2d_function::run()
 		{
+			cuda_safe_call(cudaMemset(d_out_vector, 0, sizeof(float) * output_shape.size() * batch_size));
+
 			//convolve the filter over the input space to give an output map
 			filter_convolve_2d(
-				input,
+				feed_data,
 				get_filter().get_dev_pointer(),
 				d_out_vector,
 				input_shape,
@@ -670,24 +671,23 @@ namespace nnet {
 				padding,
 				batch_size
 			);
+
+			if (phase == PHASE_TRAINING) {
+				//cache the input ready for back propagation
+				cuda_safe_call(cudaMemcpy(d_pder_vector, feed_data, sizeof(float) * input_shape.size() * batch_size, cudaMemcpyDeviceToDevice));
+			}
 		}
 
-		void conv2d_function::run_train_derivative(float* input, size_t batch_size)
+		void conv2d_function::back_propagate()
 		{
-			//cache the input ready for back propagation
-			cuda_safe_call(cudaMemcpy(d_pder_vector, input, sizeof(float) * input_shape.size() * batch_size, cudaMemcpyDeviceToDevice));
-		}
-
-		void conv2d_function::back_propagate(float* current_pds, size_t batch_size)
-		{
-			//set the temporary array to all 0s
-			cuda_safe_call(cudaMemset(d_tmp_backprop_output, 0, sizeof(float) * input_shape.size() * batch_size));
+			//set the output array to all 0s
+			cuda_safe_call(cudaMemset(d_out_derivatives, 0, sizeof(float) * input_shape.size() * batch_size));
 
 			//perform outer convolution between the input and the filter
 			filter_outer_convolve_2d(
-				current_pds,
+				d_partial_derivatives,
 				get_filter().get_dev_pointer(),
-				d_tmp_backprop_output,
+				d_out_derivatives,
 				output_shape,
 				input_shape,
 				filter_shape,
@@ -695,8 +695,9 @@ namespace nnet {
 				batch_size
 			);
 
-			//copy the temporary array back into the partial derivatives
-			cuda_safe_call(cudaMemcpy(current_pds, d_tmp_backprop_output, sizeof(float) * input_shape.size() * batch_size, cudaMemcpyDeviceToDevice));
+			//if the function isn't locked calculate the partial derivativess
+			if (!locked())
+				avg_partial_derivatives();
 		}
 
 		void conv2d_function::initialise(size_t batch_size)
@@ -705,7 +706,6 @@ namespace nnet {
 			trainable_function::initialise(batch_size);
 
 			//allocate the relevant pointers needed for this function
-			allocate_device_float_pointer(&d_tmp_backprop_output, input_shape.size() * batch_size);
 			allocate_device_float_pointer(&d_pder_vector, input_shape.size() * batch_size);
 		}
 
@@ -713,20 +713,17 @@ namespace nnet {
 		{
 			//uninitialise the base function
 			trainable_function::uninitialise();
-
-			//destroy the pointers which are no longer required
-			deallocate_device_float_pointer(d_tmp_backprop_output);
 		}
 
-		void conv2d_function::avg_partial_derivatives(float* current_pds, size_t batch_size)
+		void conv2d_function::avg_partial_derivatives()
 		{
 			//reset the derivatives tensor vector to 0s ready for calculating the derivatives
 			cuda_safe_call(cudaMemset(derivatives.get_dev_pointer(), 0, sizeof(float) * filter_shape.size() * output_shape.depth));
 
 			//calculate the derivatives with respect to each filter variable
 			filter_convolve_2d_derivative(
-				d_pder_vector,
-				current_pds,
+				feed_data,
+				d_partial_derivatives,
 				derivatives.get_dev_pointer(),
 				input_shape,
 				output_shape,
@@ -769,9 +766,8 @@ namespace nnet {
 		void conv2d_function::set_input_shape(shape input_shape)
 		{
 			//check that the input depth and filter depth are the same
-			if (input_shape.depth != filter_shape.depth) {
-				throw new exception("Input depth and filter depth must be equal");
-			}
+			ERR_ASSERT(input_shape.depth != filter_shape.depth, "Input depth and filter depth must be equal");
+
 			//set the input shapes equal
 			this->input_shape = input_shape;
 
@@ -793,23 +789,20 @@ namespace nnet {
 			instruction_function::~instruction_function();
 		}
 
-		void max_pool_function::run(float* input, size_t batch_size)
+		void max_pool_function::run()
 		{
 			//perform max pooling over the input space with the pool size and stride specified
-			max_pool_2d(input, d_mask, d_out_vector, input_shape, pool_size, stride, output_shape, padding, batch_size);
+			max_pool_2d(feed_data, d_mask, d_out_vector, input_shape, pool_size, stride, output_shape, padding, batch_size);
 		}
 
-		void max_pool_function::back_propagate(float* current_pds, size_t batch_size)
+		void max_pool_function::back_propagate()
 		{
 			//initialise the derivative vector to 0s
-			cuda_safe_call(cudaMemset(d_der_vector, 0, sizeof(float) * input_shape.size() * batch_size));
+			cuda_safe_call(cudaMemset(d_out_derivatives, 0, sizeof(float) * input_shape.size() * batch_size));
 
 			//perform max pooing derivative over the inputs to get the partial derivatives with respect
 			//to the inputs
-			max_pool_2d_derivative(current_pds, d_mask, d_der_vector, output_shape, input_shape, batch_size);
-
-			//copy the placeholder back into the partial derivatives vector
-			cuda_safe_call(cudaMemcpy(current_pds, d_der_vector, sizeof(float) * input_shape.size() * batch_size, cudaMemcpyDeviceToDevice));
+			max_pool_2d_derivative(d_partial_derivatives, d_mask, d_out_derivatives, output_shape, input_shape, batch_size);
 		}
 
 		void max_pool_function::initialise(size_t batch_size)
@@ -883,19 +876,21 @@ namespace nnet {
 			padding.height = (input_shape.height - pool_size.height) % stride.height;
 		}
 
-		void dropout_function::run(float* input, size_t batch_size)
+		void dropout_function::run()
 		{
-			//get an array of random numbers for which nodes to keep
-			random_dropout_array(dropout_mask, keep_rate, batch_size * input_shape.size());
+			if (phase == PHASE_TRAINING) {
+				//get an array of random numbers for which nodes to keep
+				random_dropout_array(dropout_mask, keep_rate, batch_size * input_shape.size());
 
-			//multiply the dropped nodes by 0 to remove them
-			hadamard_product(input, dropout_mask, d_out_vector, batch_size * input_shape.size());
+				//multiply the dropped nodes by 0 to remove them
+				hadamard_product(feed_data, dropout_mask, d_out_vector, batch_size * input_shape.size());
+			}
 		}
 
-		void dropout_function::back_propagate(float* current_pds, size_t batch_size)
+		void dropout_function::back_propagate()
 		{
 			//get the partial derivatives with respect to the inputs
-			hadamard_product(current_pds, dropout_mask, current_pds, batch_size * input_shape.size());
+			hadamard_product(d_partial_derivatives, dropout_mask, d_out_derivatives, batch_size * input_shape.size());
 		}
 
 		void dropout_function::initialise(size_t batch_size)

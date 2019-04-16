@@ -43,10 +43,10 @@ namespace nnet {
 			output_function::~output_function();
 		}
 
-		void softmax::run(float* input, size_t batch_size)
+		void softmax::run()
 		{
 			//apply the softmax probability function over the input space to each element
-			apply_softmax(input, d_out_vector, input_shape.width, batch_size, 1);
+			apply_softmax(feed_data, d_out_vector, input_shape.width, batch_size, 1);
 		}
 
 		argmax::argmax(size_t input_size)
@@ -61,7 +61,7 @@ namespace nnet {
 			output_function::~output_function();
 		}
 
-		void argmax::run(float* input, size_t batch_size)
+		void argmax::run()
 		{
 			//create temporary array for argmax
 			int* tmp_argmax;
@@ -69,7 +69,7 @@ namespace nnet {
 			cuda_safe_call(cudaMallocManaged(&tmp_argmax, sizeof(int) * input_shape.width * batch_size));
 
 			//apply the softmax probability function over the input space to each element
-			apply_argmax(input, tmp_argmax, input_shape.size(), batch_size);
+			apply_argmax(feed_data, tmp_argmax, input_shape.size(), batch_size);
 
 			//cast the int argmax to a float array
 			cast_int_to_float(tmp_argmax, d_out_vector, input_shape.width * batch_size);

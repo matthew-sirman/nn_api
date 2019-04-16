@@ -71,6 +71,7 @@ namespace nnet {
 		analytics(log_output_type out_type, verbosity v) {
 			this->log_type = out_type;
 			this->v = v;
+			plot_data = vector<pair<double, double>>();
 		}
 
 		//Destructor

@@ -1206,9 +1206,9 @@ namespace nnet {
 			//can be predetermined by the compiler, and the checks only need to be
 			//made once on the host before calling
 			dim3 blocks_per_grid(1, batch_size);
-			if (input_size > SOFTMAX_MAX_CLASSES) {
-				throw new exception("Too many classes in softmax function");
-			}
+
+			ERR_ASSERT(input_size > SOFTMAX_MAX_CLASSES, "Too many classes in softmax function");
+
 			if (input_size <= 2) {
 				dim3 threads_per_block(1, 1);
 				d_apply_softmax<1><<<blocks_per_grid, threads_per_block>>>(d_input_p, d_output_p, input_size, beta);
@@ -1348,6 +1348,8 @@ namespace nnet {
 			//made once on the host before calling
 			dim3 blocks_per_grid(1, size);
 
+			ERR_ASSERT(batch_size > 2048, "Batch size too large");
+
 			if (batch_size <= 2) {
 				dim3 threads_per_block(1, 1);
 				d_average_vector<1><<<blocks_per_grid, threads_per_block>>>(d_matrix, d_output_p, size, batch_size, divisor);
@@ -1391,9 +1393,6 @@ namespace nnet {
 			else if (batch_size <= 2048) {
 				dim3 threads_per_block(1024, 1);
 				d_average_vector<1024><<<blocks_per_grid, threads_per_block>>>(d_matrix, d_output_p, size, batch_size, divisor);
-			}
-			else {
-				throw new exception("Batch size too large.");
 			}
 		}
 
@@ -1440,6 +1439,8 @@ namespace nnet {
 			//made once on the host before calling
 			dim3 blocks_per_grid(1);
 	
+			ERR_ASSERT(size > 2048, "Average matrix size too large");
+
 			if (size <= 2) {
 				dim3 threads_per_block(1);
 				d_average_value<1><<<blocks_per_grid, threads_per_block>>>(d_input_p, average, size, divisor);
@@ -1483,9 +1484,6 @@ namespace nnet {
 			else if (size <= 2048) {
 				dim3 threads_per_block(1024);
 				d_average_value<1024><<<blocks_per_grid, threads_per_block>>>(d_input_p, average, size, divisor);
-			}
-			else {
-				throw new exception("Average matrix size too large");
 			}
 		}
 
