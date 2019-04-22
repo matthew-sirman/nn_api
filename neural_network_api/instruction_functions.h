@@ -133,16 +133,19 @@ namespace nnet {
 			//Returns the computed derivative vector after backpropagating
 			float* get_derivative_vector();
 
-			//API FUNCTION
-			//Feed Derivatives
-			//Feed the current partial derivatives to this function for training
-			void feed_derivatives(float* derivatives) {
-				this->d_partial_derivatives = derivatives;
-			}
-
 			//Is Train Function
 			//Returns true if this function is trainable, otherwise returns false
 			virtual bool is_train_function() { return false; }
+
+			//Get Input Placeholder
+			//Return a reference to the input placeholder. This can be used to
+			//feed data into this operation
+			placeholder& get_input_placeholder() { return input_data_ph; }
+
+			//Get Derivative Placeholder
+			//Return a reference to the derivative placeholder. This can be used to
+			//feed data into this operation
+			placeholder& get_derivative_placeholder() { return derivative_data_ph; }
 
 		protected:
 			//API FUNCTION
@@ -160,10 +163,6 @@ namespace nnet {
 			//(this vector is not necessarily used but is available if needed)
 			float* d_der_vector = nullptr;
 
-			//Partial Derivatives Vector
-			//Caches a pointer to the feed-in partial derivatives
-			float* d_partial_derivatives = nullptr;
-
 			//Output Derivatives Vector
 			//The derivatives which this function outputs after backpropagating
 			float* d_out_derivatives = nullptr;
@@ -172,6 +171,14 @@ namespace nnet {
 			//Flag to indicate if the function has been initialised
 			//Defaults to false
 			bool initialised = false;
+
+			//Input Data Placeholder
+			//Placeholder for the input data for this function
+			placeholder input_data_ph = placeholder("inputs");
+
+			//Derivative Data Placeholder
+			//Placeholder for the derivative data for this function
+			placeholder derivative_data_ph = placeholder("derivatives");
 		};
 
 		//Abstract base class for any trainable network instruction function
@@ -572,7 +579,7 @@ namespace nnet {
 			//Run
 			//Performs reshaping for this layer
 			inline void run() override {
-				cuda_safe_call(cudaMemcpy(d_out_vector, feed_data, sizeof(float) * input_shape.size() * batch_size, cudaMemcpyDeviceToDevice));
+				cuda_safe_call(cudaMemcpy(d_out_vector, get_placeholder_value(input_data_ph), sizeof(float) * input_shape.size() * batch_size, cudaMemcpyDeviceToDevice));
 			}
 
 			//API FUNCTION
@@ -580,7 +587,7 @@ namespace nnet {
 			//Calculate the partial derivative with respect to the input
 			//Nothing required for this function (as it is entirely linear)
 			inline void back_propagate() override {
-				cuda_safe_call(cudaMemcpy(d_out_derivatives, d_partial_derivatives, sizeof(float) * input_shape.size() * batch_size, cudaMemcpyDeviceToDevice));
+				cuda_safe_call(cudaMemcpy(d_out_derivatives, get_placeholder_value(derivative_data_ph), sizeof(float) * input_shape.size() * batch_size, cudaMemcpyDeviceToDevice));
 			};
 
 			//API FUNCTION

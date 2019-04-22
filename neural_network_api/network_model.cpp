@@ -21,8 +21,8 @@ namespace nnet {
 		//create an add function
 		add_function* f = new add_function(biases);
 
-		//push the function to the initialiser list
-		graph_nodes.push_back(node<instruction_function*>(f));
+		//add the function to the sequential graph
+		model_graph.add_function(f);
 
 		return f;
 	}
@@ -38,8 +38,8 @@ namespace nnet {
 		//create a matmul function
 		matmul_function* f = new matmul_function(weights);
 
-		//push the function to the initialiser list
-		graph_nodes.push_back(node<instruction_function*>(f));
+		//add the function to the sequential graph
+		model_graph.add_function(f);
 
 		//set the shape of the next layer to be the output shape from the matrix
 		this->init_layer_shape = shape(weights.get_shape()[0]);
@@ -112,8 +112,8 @@ namespace nnet {
 		//create the conv2d function
 		conv2d_function * f = new conv2d_function(filter, padding);
 
-		//push the function to the initialiser list
-		graph_nodes.push_back(node<instruction_function*>(f));
+		//add the function to the sequential graph
+		model_graph.add_function(f);
 
 		//set the input shape of the function, which for conv2d will calculate
 		//the output shape
@@ -133,8 +133,8 @@ namespace nnet {
 		//create the max pool function
 		max_pool_function * f = new max_pool_function(pool_size, stride);
 
-		//push the function to the initialiser list
-		graph_nodes.push_back(node<instruction_function*>(f));
+		//add the function to the sequential graph
+		model_graph.add_function(f);
 
 		//set the input shape of the function, which for max pool will calculate
 		//the output shape
@@ -154,8 +154,8 @@ namespace nnet {
 		//create the flatten function 
 		flatten_function * f = new flatten_function(init_layer_shape);
 
-		//push the function to the initialiser list
-		graph_nodes.push_back(node<instruction_function*>(f));
+		//add the function to the sequential graph
+		model_graph.add_function(f);
 
 		//set the next layer shape to be the output shape
 		init_layer_shape = f->output_shape;
@@ -171,8 +171,8 @@ namespace nnet {
 		//create the reshape function
 		reshape_function * f = new reshape_function(init_layer_shape, output_shape);
 
-		//push the function to the initialiser list
-		graph_nodes.push_back(node<instruction_function*>(f));
+		//add the function to the sequential graph
+		model_graph.add_function(f);
 
 		//set the next layer shape to be the output shape
 		init_layer_shape = output_shape;
@@ -190,8 +190,8 @@ namespace nnet {
 
 		f->set_input_shape(init_layer_shape);
 
-		//push the function to the initialiser list
-		graph_nodes.push_back(node<instruction_function*>(f));
+		//add the function to the sequential graph
+		model_graph.add_function(f);
 
 		return f;
 	}
@@ -204,8 +204,8 @@ namespace nnet {
 		//create the relu function 
 		relu_function* f = new relu_function(init_layer_shape);
 
-		//push the function to the initialiser list
-		graph_nodes.push_back(node<instruction_function*>(f));
+		//add the function to the sequential graph
+		model_graph.add_function(f);
 
 		return f;
 	}
@@ -218,8 +218,8 @@ namespace nnet {
 		//create the leaky relu function 
 		leaky_relu_function* f = new leaky_relu_function(init_layer_shape, alpha);
 
-		//push the function to the initialiser list
-		graph_nodes.push_back(node<instruction_function*>(f));
+		//add the function to the sequential graph
+		model_graph.add_function(f);
 
 		return f;
 	}
@@ -232,8 +232,8 @@ namespace nnet {
 		//create the tanh function 
 		tanh_function* f = new tanh_function(init_layer_shape);
 
-		//push the function to the initialiser list
-		graph_nodes.push_back(node<instruction_function*>(f));
+		//add the function to the sequential graph
+		model_graph.add_function(f);
 
 		return f;
 	}
@@ -246,8 +246,8 @@ namespace nnet {
 		//create the sigmoid function 
 		sigmoid_function* f = new sigmoid_function(init_layer_shape);
 
-		//push the function to the initialiser list
-		graph_nodes.push_back(node<instruction_function*>(f));
+		//add the function to the sequential graph
+		model_graph.add_function(f);
 
 		return f;
 	}
@@ -257,8 +257,8 @@ namespace nnet {
 		//check that the entry shape is specified
 		ERR_ASSERT(!__ent_spec, "Entry size not specified");
 
-		//push the function to the initialiser list
-		graph_nodes.push_back(node<instruction_function*>(func));
+		//add the function to the sequential graph
+		model_graph.add_function(func);
 
 		return func;
 	}
@@ -275,39 +275,18 @@ namespace nnet {
 			return;
 
 		//check that there is a model to initialise
-		ERR_ASSERT(graph_nodes.size() == 0, "Cannot initialise empty model");
-
-		model_graph.add_node(&graph_nodes[0]);
-
-		//set the graph entry
-		model_graph.set_start_point(&graph_nodes[0]);
-
-		//set up edges
-		for (int i = 1; i < graph_nodes.size(); i++) {
-			//get a reference to the current and previous nodes
-			node<instruction_function*>* n = &graph_nodes[i];
-			node<instruction_function*>* n_p = &graph_nodes[i - 1];
-
-			//provide references for the nodes children and parents
-			n->parents.push_back(n_p);
-			n_p->children.push_back(n);
-
-			//add this node to the graph
-			model_graph.add_node(n);
-		}
+		ERR_ASSERT(model_graph.empty(), "Cannot initialise empty model");
 
 		//get a reference to the output shape from the model
-		output_shape = graph_nodes.back().value->output_shape;
-
-		//set the graph exit
-		model_graph.set_end_point(&graph_nodes.back());
+		output_shape = model_graph.get_output_node_shape();
 
 		//initialise the graph
 		model_graph.initialise(output_shape, batch_size);
 
-		//if there is an optimiser, initialise it
+		//if there is an optimiser, get the operation from it specifying the 
+		//graph it should optimise
 		if (opt != nullptr)
-			opt->initialise(&model_graph);
+			opt_operation = opt->optimise(&model_graph, METRIC_LOSS);
 
 		//save the batch size
 		this->batch_size = batch_size;
@@ -324,13 +303,13 @@ namespace nnet {
 
 		//if there was a optimiser, uninitialise it
 		if (opt != nullptr)
-			opt->uninitialise();
+			delete opt;
 
 		//flag that the model is now uninitialised
 		model_initialised = false;
 	}
 	
-	tensor network_model::run(tensor input)
+	tensor network_model::predict(tensor input)
 	{
 		//if the model is not initialised it can not be run, so throw an exception
 		ERR_ASSERT(!model_initialised, "Model not initialised");
@@ -464,16 +443,20 @@ namespace nnet {
 				}
 
 				//calculate the gradients for this entire batch with the batch read from the input tensors
-				calculate_gradients(
-					model_graph,
-					&train_x.get_dev_pointer()[batch * batch_size * model_graph.get_input_shape().size()],
-					&train_y.get_dev_pointer()[batch * batch_size * output_shape.size()],
-					current_batch_size,
-					METRIC_LOSS
-				);
 
-				//optimise the trainable functions in the network with the optimiser
-				opt->optimise();
+				//get a reference to the inputs and targets
+				float* feed_x = &train_x.get_dev_pointer()[batch * batch_size * model_graph.get_input_shape().size()];
+				float* feed_y = &train_y.get_dev_pointer()[batch * batch_size * output_shape.size()];
+
+				//run the optimiser to train this stage of the network
+				model_graph.run(
+					opt_operation,
+					current_batch_size,
+					{
+						{&opt_operation->get_input_placeholder(), feed_x},
+						{&opt_operation->get_target_placeholder(), feed_y}
+					}
+				);
 
 				//add the total loss for this batch to the epoch loss
 				epoch_loss += model_graph.get_cost_function()->get_average_loss() * current_batch_size;
@@ -600,16 +583,17 @@ namespace nnet {
 
 				//calculate the gradients for this entire batch with the tensors loaded
 				//from the iterator
-				calculate_gradients(
-					model_graph,
-					train_x->get_dev_pointer(),
-					train_y->get_dev_pointer(),
-					current_batch_size,
-					METRIC_LOSS
-				);
 
-				//optimise the trainable functions in the network with the optimiser
-				opt->optimise();
+				//run the optimiser to train this stage of the network, feeding in the inputs
+				//and targets for this batch
+				model_graph.run(
+					opt_operation,
+					current_batch_size,
+					{
+						{&opt_operation->get_input_placeholder(), train_x->get_dev_pointer()},
+						{&opt_operation->get_target_placeholder(), train_y->get_dev_pointer()}
+					}
+				);
 
 				//add the total loss for this batch to the epoch loss
 				epoch_loss += model_graph.get_cost_function()->get_average_loss() * current_batch_size;
@@ -942,10 +926,13 @@ namespace nnet {
 				f = new flatten_function();
 				f->deserialise(data_buff, 0);
 				break;
+			case function_id::DROPOUT:
+				f = new dropout_function();
+				f->deserialise(data_buff, 0);
 			}
 
-			//add the function to the instructions vector
-			model->graph_nodes.push_back(node<instruction_function*>(f));
+			//add the function to the graph
+			model->model_graph.add_function(f);
 
 			//free the placeholder vector
 			free(data_buff);
@@ -992,7 +979,7 @@ namespace nnet {
 		ofstream data_stream(model_folder + "\\" + model_name + "\\" + model_name + ".model", ofstream::binary);
 
 		//get the number of instructions in the model
-		int i_size = graph_nodes.size();
+		int i_size = model_graph.size();
 
 		//write the number of instructions to the beginning of the file
 		data_stream.write((char*)& i_size, sizeof(int));
@@ -1000,7 +987,7 @@ namespace nnet {
 		//loop through each layer in the model
 		for (int layer = 0; layer < i_size; layer++) {
 			//get a temporary reference to the layer function
-			instruction_function* i_func = graph_nodes[layer].value;
+			instruction_function* i_func = model_graph.get_functions()[layer];
 
 			//get the size which this function will stream to (in bytes)
 			size_t stream_size = i_func->get_serialise_size();

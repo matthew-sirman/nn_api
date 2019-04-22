@@ -232,11 +232,11 @@ namespace nnet {
 		//when use of the model is finished.
 		void uninitialise_model();
 
-		//Run
+		//Predict
 		//Run a tensor of inputs (where the tensor shape should be each input in the first
 		//dimension, and the shape of each input in the following dimensions)
 		//Returns a tensor of predictions which will be formatted depending on the output function.
-		tensor run(tensor input);
+		tensor predict(tensor input);
 
 		//Train
 		//Train the network model by minimising the loss between expected and observed results
@@ -303,16 +303,16 @@ namespace nnet {
 
 		//the internal graph to store this network under.
 		//the graph will be sequential if create by this model class
-		network_graph model_graph;
-
-		//container to hold a reference to each function in the model for initialisation
-		vector<node<instruction_function*>> graph_nodes;
-
+		sequential_network_graph model_graph;
+		
 		//holds the current layer shape during model definition
 		shape init_layer_shape;
 
 		//the optimiser function for this model if it is training
 		optimiser * opt = nullptr;
+
+		//the operation to run the optimiser
+		optimiser_operation* opt_operation = nullptr;
 
 		//the logger for training outputs and graph plotting
 		analytics *analytics_logger = nullptr;

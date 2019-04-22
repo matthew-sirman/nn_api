@@ -12,9 +12,14 @@ namespace nnet {
 			this->momentum = momentum;
 		}
 
-		void stochastic_gradient_descent::optimise()
+		optimiser_operation* stochastic_gradient_descent::optimise(network_graph* g, int metrics)
 		{
-			throw new exception("Not implemented");
+			ERR_ASSERT(false, "Stochastic Gradient Descent is not currently implemented");
+		}
+
+		void stochastic_gradient_descent::__optimise()
+		{
+			ERR_ASSERT(false, "Stochastic Gradient Descent is not currently implemented");
 		}
 
 		adam::adam(double learning_rate, double beta1, double beta2, double epsilon)
@@ -26,7 +31,43 @@ namespace nnet {
 			this->epsilon = epsilon;
 		}
 
-		void adam::optimise()
+		adam::~adam()
+		{
+			//uninitialise the base function
+			optimiser::~optimiser();
+
+			//loop through each function and dereference the momentum and 
+			//velocity pointers for each
+			for (int f = 0; f < t_funcs.size(); f++) {
+				deallocate_device_float_pointer(momentum_ps[f]);
+				deallocate_device_float_pointer(velocity_ps[f]);
+			}
+		}
+
+		optimiser_operation* adam::optimise(network_graph* g, int metrics)
+		{
+			t_funcs = g->get_train_functions();
+
+			//loop through each function
+			for (int f = 0; f < t_funcs.size(); f++) {
+				//declare pointers for momentum and velocity
+				float* m_p;
+				float* v_p;
+
+				//allocate device memory for momentum and velocity
+				allocate_device_float_pointer(&m_p, t_funcs[f]->get_train_tensor_size());
+				allocate_device_float_pointer(&v_p, t_funcs[f]->get_train_tensor_size());
+
+				//add the new pointers to a vector to store them both
+				momentum_ps.push_back(m_p);
+				velocity_ps.push_back(v_p);
+			}
+
+			//return the operation
+			return new optimiser_operation(g, [=]() { __optimise(); }, metrics);
+		}
+
+		void adam::__optimise()
 		{
 			//loop through each trainable function
 			for (int f = 0; f < t_funcs.size(); f++) {
@@ -79,38 +120,6 @@ namespace nnet {
 
 			//increment the step counter
 			__step++;
-		}
-		void adam::initialise(network_graph* g)
-		{
-			//call the base initialiser
-			optimiser::initialise(g);
-
-			//loop through each function
-			for (int f = 0; f < t_funcs.size(); f++) {
-				//declare pointers for momentum and velocity
-				float* m_p;
-				float* v_p;
-
-				//allocate device memory for momentum and velocity
-				allocate_device_float_pointer(&m_p, t_funcs[f]->get_train_tensor_size());
-				allocate_device_float_pointer(&v_p, t_funcs[f]->get_train_tensor_size());
-
-				//add the new pointers to a vector to store them both
-				momentum_ps.push_back(m_p);
-				velocity_ps.push_back(v_p);
-			}
-		}
-		void adam::uninitialise()
-		{
-			//uninitialise the base function
-			optimiser::uninitialise();
-
-			//loop through each function and dereference the momentum and 
-			//velocity pointers for each
-			for (int f = 0; f < t_funcs.size(); f++) {
-				deallocate_device_float_pointer(momentum_ps[f]);
-				deallocate_device_float_pointer(velocity_ps[f]);
-			}
 		}
 	}
 }

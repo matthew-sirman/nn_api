@@ -1,5 +1,11 @@
 #pragma once
 
+#include <unordered_map>
+
+#include "placeholder.h"
+
+using namespace std;
+
 namespace nnet {
 	namespace nnet_internal {
 		//API ENUMERATION
@@ -30,10 +36,18 @@ namespace nnet {
 
 			//Feed Input Data
 			//Feed data into an operation function for use when running
-			virtual void feed_input_data(float* input) {
-				this->feed_data = input;
+			virtual void feed(placeholder& p, float* input) {
+				this->feed_data[&p] = input;
+			}
+			
+			//Get Placeholder Value
+			//Gets the value stored in the specified placeholder, assuming
+			//it has already been fed in
+			float* get_placeholder_value(placeholder& p) {
+				return feed_data[&p];
 			}
 
+			//API FUNCTION
 			//Set Phase
 			//Informs the function whether the network is training or running
 			void set_phase(network_phase phase) {
@@ -42,7 +56,7 @@ namespace nnet {
 		protected:
 			//Feed Data
 			//The stored feed data for this operation
-			float* feed_data = nullptr;
+			unordered_map<placeholder*, float*> feed_data;
 
 			//Batch Size
 			//The preset batch size with which the vectors are initialised

@@ -1,322 +1,347 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <ClassDiagram MajorVersion="1" MinorVersion="1">
-  <Class Name="batch_iterator" Collapsed="true">
-    <Position X="32.75" Y="8" Width="1.5" />
+  <Class Name="nnet::batch_iterator" Collapsed="true">
+    <Position X="38.25" Y="8" Width="1.5" />
     <TypeIdentifier>
       <HashCode>AAAgAAAACBIAAAAhgAECAAAAAAAAAACAIIAgIAAEAAA=</HashCode>
       <FileName>batch_iterator.h</FileName>
     </TypeIdentifier>
   </Class>
-  <Class Name="cifar_data_loader&lt;cifar, CLASSES, WIDTH, HEIGHT, DEPTH&gt;" Collapsed="true">
-    <Position X="32.75" Y="9.25" Width="4" />
+  <Class Name="nnet::cifar_data_loader&lt;cifar, CLASSES, WIDTH, HEIGHT, DEPTH&gt;" Collapsed="true">
+    <Position X="38.25" Y="9.25" Width="4" />
     <TypeIdentifier>
       <HashCode>CAQAAAAECAAAABIgAAEIAIAhIIgABAAEIIAQIAAEAQA=</HashCode>
       <FileName>cifar_data_loader.h</FileName>
     </TypeIdentifier>
   </Class>
-  <Class Name="heirarchy_image_loader" Collapsed="true">
-    <Position X="37" Y="9.25" Width="2" />
+  <Class Name="nnet::heirarchy_image_loader" Collapsed="true">
+    <Position X="42.5" Y="9.25" Width="2" />
     <TypeIdentifier>
       <HashCode>BgAAAAAECAAIABAggAEAAAAgAIgABAAAIIAQIABAAQA=</HashCode>
       <FileName>heirarchy_image_loader.h</FileName>
     </TypeIdentifier>
   </Class>
-  <Class Name="mnist_data_loader" Collapsed="true">
-    <Position X="39.25" Y="9.25" Width="1.5" />
+  <Class Name="nnet::mnist_data_loader" Collapsed="true">
+    <Position X="44.75" Y="9.25" Width="1.5" />
     <TypeIdentifier>
       <HashCode>CAAAAAAEJAAICBIgAAEAAAEhAIggBlAAIcAQIAAAAQA=</HashCode>
       <FileName>mnist_data_loader.h</FileName>
     </TypeIdentifier>
   </Class>
-  <Class Name="tensor" Collapsed="true">
-    <Position X="21.25" Y="7.25" Width="1.5" />
+  <Class Name="nnet::tensor" Collapsed="true">
+    <Position X="18.25" Y="7.25" Width="1.5" />
     <TypeIdentifier>
       <HashCode>AAIgAAAABFBAAAAAAIUIQABAgAACCPAgAAQSAAAABSA=</HashCode>
       <FileName>tensor.h</FileName>
     </TypeIdentifier>
   </Class>
-  <Class Name="timer" Collapsed="true">
-    <Position X="24.25" Y="4.75" Width="1.5" />
+  <Class Name="nnet::timer" Collapsed="true">
+    <Position X="12.75" Y="7.5" Width="1.5" />
     <TypeIdentifier>
       <HashCode>AAQAAAFIAABAAAAgAAQAAAAAAAAgAAAAAAAQAAAAAAA=</HashCode>
       <FileName>timer.h</FileName>
     </TypeIdentifier>
   </Class>
-  <Class Name="analytics" Collapsed="true">
-    <Position X="24.25" Y="5.5" Width="1.5" />
+  <Class Name="nnet::analytics" Collapsed="true">
+    <Position X="12.75" Y="8.25" Width="1.5" />
     <TypeIdentifier>
       <HashCode>IQQIEICAAACIgAAIAAAAQEAQAAAABIQAAFiAAAACAAg=</HashCode>
       <FileName>analytics.h</FileName>
     </TypeIdentifier>
   </Class>
-  <Class Name="nn::cost_function" Collapsed="true">
-    <Position X="20.75" Y="4.75" Width="1.5" />
+  <Class Name="nnet::cost_functions::cost_function" Collapsed="true">
+    <Position X="28.25" Y="9.5" Width="1.5" />
     <TypeIdentifier>
-      <HashCode>EAAgABAAAAAAAQEAAAEAIQByAAAUAAAAAAAgAAAAAQA=</HashCode>
+      <HashCode>kAAgABAAAAAAAQEBAAGAIQDyAAAEAAAAAAAgAAAAAQA=</HashCode>
       <FileName>cost_functions.h</FileName>
     </TypeIdentifier>
   </Class>
-  <Class Name="nn::squared_error" Collapsed="true">
-    <Position X="20" Y="6.25" Width="1.5" />
+  <Class Name="nnet::cost_functions::softmax_cross_entropy" Collapsed="true">
+    <Position X="29.25" Y="11.5" Width="2" />
     <TypeIdentifier>
-      <HashCode>AAAAAAEAAAAAAAAAAAQAAQAAAAAQAAAAAAAAAAAAAAA=</HashCode>
+      <HashCode>AAAAAgAAAAAAAAAAAAUAAQBAAAAAABAAAAAAAAAAABA=</HashCode>
       <FileName>cost_functions.h</FileName>
     </TypeIdentifier>
   </Class>
-  <Class Name="nn::softmax_cross_entropy" Collapsed="true">
-    <Position X="21.75" Y="6.25" Width="2" />
+  <Class Name="nnet::instructions::serialisable_function" Collapsed="true">
+    <Position X="19.75" Y="9.5" Width="1.75" />
     <TypeIdentifier>
-      <HashCode>AAAAAAAAAAAAAAAAAAUAAQBAAAAQABAAAAAAAAAAABA=</HashCode>
-      <FileName>cost_functions.h</FileName>
-    </TypeIdentifier>
-  </Class>
-  <Class Name="nn::serialisable_function" Collapsed="true">
-    <Position X="21.25" Y="8.25" Width="1.75" />
-    <TypeIdentifier>
-      <HashCode>AAAAAggAAEAAAAAAAAAAAAAQAAAAAAAgAAAAAAAAAQA=</HashCode>
+      <HashCode>AAAAAAgAAEAAAAAAAAAAAAAQAAAAAAAgAAAAAAAAAQA=</HashCode>
       <FileName>instruction_functions.h</FileName>
     </TypeIdentifier>
   </Class>
-  <Class Name="nn::instruction_function" Collapsed="true">
-    <Position X="20.25" Y="10.25" Width="1.75" />
+  <Class Name="nnet::instructions::output_function" Collapsed="true">
+    <Position X="25.75" Y="11.5" Width="1.5" />
     <TypeIdentifier>
-      <HashCode>AAAAAEgAABAAAQEAAEFAQABAAACBAABgAAAgAAACAAA=</HashCode>
-      <FileName>instruction_functions.h</FileName>
-    </TypeIdentifier>
-  </Class>
-  <Class Name="nn::output_function" Collapsed="true">
-    <Position X="27.25" Y="10.25" Width="1.5" />
-    <TypeIdentifier>
-      <HashCode>AAAAAAAAABAEAAAAAAFIAgBAAAAAAAAAAAAgAAAAAAA=</HashCode>
+      <HashCode>gAAAAAAAABAEAAABAAFIAgBAAAAAAAAAAAAAAAAAAAA=</HashCode>
       <FileName>output_functions.h</FileName>
     </TypeIdentifier>
   </Class>
-  <Class Name="nn::trainable_function" Collapsed="true">
-    <Position X="17.5" Y="10.25" Width="1.5" />
+  <Class Name="nnet::instructions::trainable_function" Collapsed="true">
+    <Position X="16" Y="11.5" Width="1.5" />
     <TypeIdentifier>
-      <HashCode>AAAAAIoAEAAAICAJAEEAAARACAAAwAAgAAIAAAAAADg=</HashCode>
+      <HashCode>AAAAAIoAEAAAICAIAEEAAARAGAAAwAAgAAIAAAAAADg=</HashCode>
       <FileName>instruction_functions.h</FileName>
     </TypeIdentifier>
   </Class>
-  <Class Name="nn::add_function" Collapsed="true">
-    <Position X="16" Y="13.75" Width="1.5" />
+  <Class Name="nnet::instructions::add_function" Collapsed="true">
+    <Position X="14.5" Y="15" Width="1.5" />
     <TypeIdentifier>
-      <HashCode>AAAAAggAAAAAAAABACEAAABAABCAQAAAAAAAAAACAQA=</HashCode>
+      <HashCode>AAAAAggAAAAAAAAAACEAAABAABCAQAAAAAAAAAAAAQA=</HashCode>
       <FileName>instruction_functions.h</FileName>
     </TypeIdentifier>
   </Class>
-  <Class Name="nn::matmul_function" Collapsed="true">
-    <Position X="16" Y="12.75" Width="1.5" />
+  <Class Name="nnet::instructions::matmul_function" Collapsed="true">
+    <Position X="14.5" Y="14" Width="1.5" />
     <TypeIdentifier>
-      <HashCode>AAAAAgAAAABAAAABAAEAAAhAAAKAQABAAAAAEAACARA=</HashCode>
+      <HashCode>AAAAAgAAAABAAAAAAAEAAAhAAAKAQABAAAAAAAAAARA=</HashCode>
       <FileName>instruction_functions.h</FileName>
     </TypeIdentifier>
   </Class>
-  <Class Name="nn::conv2d_function" Collapsed="true">
-    <Position X="16" Y="11.75" Width="1.5" />
+  <Class Name="nnet::instructions::conv2d_function" Collapsed="true">
+    <Position X="14.5" Y="13" Width="1.5" />
     <TypeIdentifier>
-      <HashCode>ABAAAggAAAAAAAABBAEAAABAAASAQABgAAAAAAACAQg=</HashCode>
+      <HashCode>AAAAAggAAAAAAAAABAEAAABAAASAQABgAAAAAAACAQg=</HashCode>
       <FileName>instruction_functions.h</FileName>
     </TypeIdentifier>
   </Class>
-  <Class Name="nn::max_pool_function" Collapsed="true">
-    <Position X="21.75" Y="11.75" Width="1.75" />
+  <Class Name="nnet::instructions::max_pool_function" Collapsed="true">
+    <Position X="20.25" Y="13" Width="1.75" />
     <TypeIdentifier>
       <HashCode>AAAAAggAAAAgAAAAAAEAAABABACAAAhgAAEAAAACAQA=</HashCode>
       <FileName>instruction_functions.h</FileName>
     </TypeIdentifier>
   </Class>
-  <Class Name="nn::reshape_function" Collapsed="true">
-    <Position X="24.25" Y="11.75" Width="1.5" />
+  <Class Name="nnet::instructions::reshape_function" Collapsed="true">
+    <Position X="22.75" Y="13" Width="1.5" />
     <TypeIdentifier>
-      <HashCode>AAAEAgAAAAAAAAAAAAAAAAAAAACAAABAAAAAACACAQA=</HashCode>
+      <HashCode>AAAEAgAAAAAAAAAAAAAAAAAAAACAAABAAAAAACAAAQA=</HashCode>
       <FileName>instruction_functions.h</FileName>
     </TypeIdentifier>
   </Class>
-  <Class Name="nn::flatten_function" Collapsed="true">
-    <Position X="24.25" Y="13" Width="1.5" />
+  <Class Name="nnet::instructions::flatten_function" Collapsed="true">
+    <Position X="22.75" Y="14.25" Width="1.5" />
     <TypeIdentifier>
       <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAABACAACAAAAAQA=</HashCode>
       <FileName>instruction_functions.h</FileName>
     </TypeIdentifier>
   </Class>
-  <Class Name="nn::relu_function" Collapsed="true">
-    <Position X="19" Y="11.75" Width="1.5" />
+  <Class Name="nnet::instructions::relu_function" Collapsed="true">
+    <Position X="17.5" Y="13" Width="1.5" />
     <TypeIdentifier>
-      <HashCode>AAAAAgAAAAAEAAAAAAEAAABAAACgAAAAAAAAAAACAQA=</HashCode>
+      <HashCode>AAAAAgAAAAAEAAAAAAEAAABAAACgAAAAAAAAAAAAAQA=</HashCode>
       <FileName>instruction_functions.h</FileName>
     </TypeIdentifier>
   </Class>
-  <Class Name="nn::leaky_relu_function" Collapsed="true">
-    <Position X="19" Y="12.75" Width="1.75" />
+  <Class Name="nnet::instructions::leaky_relu_function" Collapsed="true">
+    <Position X="17.5" Y="14" Width="1.75" />
     <TypeIdentifier>
-      <HashCode>AAAgAggAAAAEAAAAAAEAAABAAACAAAAgAAAQAAACAQA=</HashCode>
+      <HashCode>AAAgAggAAAAEAAAAAAEAAABAAACAAAAgAAAQAAAAAQA=</HashCode>
       <FileName>instruction_functions.h</FileName>
     </TypeIdentifier>
   </Class>
-  <Class Name="nn::tanh_function" Collapsed="true">
-    <Position X="19" Y="13.75" Width="1.5" />
+  <Class Name="nnet::instructions::tanh_function" Collapsed="true">
+    <Position X="17.5" Y="15" Width="1.5" />
     <TypeIdentifier>
-      <HashCode>AAAAAgQAAAAAAAAAAAEAAABAAACAAAAAAAAAAAAiAQA=</HashCode>
+      <HashCode>AAAAAgQAAAAAAAAAAAEAAABAAACAAAAAAAAAAAAgAQA=</HashCode>
       <FileName>instruction_functions.h</FileName>
     </TypeIdentifier>
   </Class>
-  <Class Name="nn::sigmoid_function" Collapsed="true">
-    <Position X="19" Y="14.75" Width="1.5" />
-    <InheritanceLine Type="nn::instruction_function" ManuallyRouted="true">
-      <Path>
-        <Point X="21.125" Y="10.941" />
-        <Point X="21.125" Y="14.596" />
-        <Point X="19.75" Y="14.596" />
-        <Point X="19.75" Y="14.75" />
-      </Path>
-    </InheritanceLine>
+  <Class Name="nnet::instructions::sigmoid_function" Collapsed="true">
+    <Position X="17.5" Y="16" Width="1.5" />
     <TypeIdentifier>
-      <HashCode>AAAAAgAAAAAAAAAAAAEAAABAgACAAAIAAAAAAAACAQA=</HashCode>
+      <HashCode>AAAAAgAAAAAAAAAAAAEAAABAgACAAAIAAAAAAAAAAQA=</HashCode>
       <FileName>instruction_functions.h</FileName>
     </TypeIdentifier>
   </Class>
-  <Class Name="nn::softmax" Collapsed="true">
-    <Position X="26.25" Y="11.75" Width="1.5" />
+  <Class Name="nnet::instructions::softmax" Collapsed="true">
+    <Position X="24.75" Y="13" Width="1.5" />
     <TypeIdentifier>
       <HashCode>AAAAQgAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAACA=</HashCode>
       <FileName>output_functions.h</FileName>
     </TypeIdentifier>
   </Class>
-  <Class Name="nn::network_model" Collapsed="true">
-    <Position X="21.5" Y="2.5" Width="1.5" />
+  <Class Name="nnet::network_model" Collapsed="true">
+    <Position X="23.5" Y="4.25" Width="1.5" />
     <TypeIdentifier>
-      <HashCode>AAMAAgEEIGAgACAAQkBQQAAAAAOCiGEACAAoAgAjFiQ=</HashCode>
+      <HashCode>AAMAAgEEoGCgACAAQgAAQQAEQAOCiEEEIIAoAAAjFiQ=</HashCode>
       <FileName>network_model.h</FileName>
     </TypeIdentifier>
   </Class>
-  <Class Name="nn::optimiser" Collapsed="true">
-    <Position X="17.75" Y="4.75" Width="1.5" />
+  <Class Name="nnet::optimisers::adam" Collapsed="true">
+    <Position X="32" Y="13" Width="1.5" />
     <TypeIdentifier>
-      <HashCode>AgAAEAAAAAAAAAAAIAEAAABAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <HashCode>AgAAACAAgAAhQAAAAAAAAJAAAAAABEAAAAAACAAAAAA=</HashCode>
       <FileName>optimisers.h</FileName>
     </TypeIdentifier>
   </Class>
-  <Class Name="nn::adam" Collapsed="true">
-    <Position X="17.75" Y="6.25" Width="1.5" />
-    <TypeIdentifier>
-      <HashCode>AgAAACAAgAABQAAAAAEAAJBAAAAABEAAAAAACAAAAAA=</HashCode>
-      <FileName>optimisers.h</FileName>
-    </TypeIdentifier>
-  </Class>
-  <Class Name="nn::argmax" Collapsed="true">
-    <Position X="26.25" Y="13" Width="1.5" />
+  <Class Name="nnet::instructions::argmax" Collapsed="true">
+    <Position X="24.75" Y="14.25" Width="1.5" />
     <TypeIdentifier>
       <HashCode>AAAAAgCAAAAAAAAAAAEAAACAgAAAAAAAAAAAAAAAAAA=</HashCode>
       <FileName>output_functions.h</FileName>
     </TypeIdentifier>
   </Class>
-  <Class Name="nn::dropout_function" Collapsed="true">
-    <Position X="21.75" Y="12.75" Width="1.5" />
-    <InheritanceLine Type="nn::instruction_function" ManuallyRouted="true">
-      <Path>
-        <Point X="21.125" Y="10.941" />
-        <Point X="21.125" Y="11.398" />
-        <Point X="23.785" Y="11.398" />
-        <Point X="23.785" Y="12.596" />
-        <Point X="22.5" Y="12.596" />
-        <Point X="22.5" Y="12.75" />
-      </Path>
-    </InheritanceLine>
+  <Class Name="nnet::instructions::dropout_function" Collapsed="true">
+    <Position X="20.25" Y="14" Width="1.5" />
     <TypeIdentifier>
-      <HashCode>AAAAAgAAQAAAAAAAAAEAAAhAAACAAAAAAAAAAAADAQA=</HashCode>
+      <HashCode>AAAAAgAAQAAAAAAAAAEAAAhAAACAAAAAAAAAAAABAQA=</HashCode>
       <FileName>instruction_functions.h</FileName>
     </TypeIdentifier>
   </Class>
-  <Struct Name="shape" Collapsed="true">
-    <Position X="14.25" Y="9" Width="1.5" />
+  <Class Name="nnet::instructions::instruction_function" Collapsed="true">
+    <Position X="18.75" Y="11.5" Width="1.75" />
+    <TypeIdentifier>
+      <HashCode>gAAAAEgAABgAAQEBAEFAAABAEAGAAABgAAAAAAAAIAA=</HashCode>
+      <FileName>instruction_functions.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="nnet::optimisers::optimiser" Collapsed="true">
+    <Position X="32" Y="11.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AgAAEAAAAAAgAAAAIAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>optimisers.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="nnet::cost_functions::squared_error" Collapsed="true">
+    <Position X="27.5" Y="11.5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAgEAAAAAAAAAAAQAAQAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>cost_functions.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="nnet::nnet_internal::operation" Collapsed="true">
+    <Position X="23.5" Y="7.25" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAgAAAAAAAAAAAACAAAAAACgAAAAAAAgkAAAAAAI=</HashCode>
+      <FileName>operation.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="nnet::optimisers::optimiser_operation" Collapsed="true">
+    <Position X="32" Y="9.5" Width="1.5" />
+    <InheritanceLine Type="nnet::nnet_internal::operation" ManuallyRouted="true">
+      <Path>
+        <Point X="24.25" Y="7.812" />
+        <Point X="24.25" Y="8.157" />
+        <Point X="32.75" Y="8.157" />
+        <Point X="32.75" Y="9.5" />
+      </Path>
+    </InheritanceLine>
+    <TypeIdentifier>
+      <HashCode>gAAAAgAAAAAAAAABAACAAACAAAAAAAAIAAQQIAAAAAA=</HashCode>
+      <FileName>optimisers.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="nnet::placeholder" Collapsed="true">
+    <Position X="18.25" Y="8" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAAAAEAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>placeholder.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="nnet::nnet_internal::graph&lt;T&gt;" Collapsed="true">
+    <Position X="23.5" Y="5" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>gAACAAAAAAAAABAAAAAAAAAACAIAAQIABAAABAAIIAI=</HashCode>
+      <FileName>graph.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Class Name="nnet::network_graph" Collapsed="true">
+    <Position X="23.5" Y="6.25" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAIAAgAABAIAAAARAEUAAQBAIAAAACQAAAABQAABAAA=</HashCode>
+      <FileName>graph.h</FileName>
+    </TypeIdentifier>
+  </Class>
+  <Struct Name="nnet::shape" Collapsed="true">
+    <Position X="18.25" Y="6.5" Width="1.5" />
     <TypeIdentifier>
       <HashCode>AAAAAAAAAAAAAAQAQIAAAQAAAAAAACAkAAAAIAAABQA=</HashCode>
       <FileName>shape.h</FileName>
     </TypeIdentifier>
   </Struct>
-  <Typedef Name="cifar_10_data_loader" Collapsed="true">
-    <Position X="29.25" Y="11" Width="4.25" />
+  <Typedef Name="nnet::cifar_10_data_loader" Collapsed="true">
+    <Position X="34.75" Y="11" Width="4.25" />
     <TypeIdentifier>
       <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
       <FileName>cifar_data_loader.h</FileName>
     </TypeIdentifier>
   </Typedef>
-  <Typedef Name="cifar_10_small_data_loader" Collapsed="true">
-    <Position X="29.25" Y="11.75" Width="4.75" />
+  <Typedef Name="nnet::cifar_10_small_data_loader" Collapsed="true">
+    <Position X="34.75" Y="11.75" Width="4.75" />
     <TypeIdentifier>
       <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
       <FileName>cifar_data_loader.h</FileName>
     </TypeIdentifier>
   </Typedef>
-  <Typedef Name="cifar_100_fine_data_loader" Collapsed="true">
-    <Position X="29.25" Y="13.25" Width="5" />
+  <Typedef Name="nnet::cifar_100_fine_data_loader" Collapsed="true">
+    <Position X="34.75" Y="13.25" Width="5" />
     <TypeIdentifier>
       <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
       <FileName>cifar_data_loader.h</FileName>
     </TypeIdentifier>
   </Typedef>
-  <Typedef Name="cifar_100_coarse_data_loader" Collapsed="true">
-    <Position X="29.25" Y="12.5" Width="5" />
+  <Typedef Name="nnet::cifar_100_coarse_data_loader" Collapsed="true">
+    <Position X="34.75" Y="12.5" Width="5" />
     <TypeIdentifier>
       <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
       <FileName>cifar_data_loader.h</FileName>
     </TypeIdentifier>
   </Typedef>
-  <Enum Name="cifar_dataset" Collapsed="true">
-    <Position X="29.25" Y="10.25" Width="1.5" />
+  <Enum Name="nnet::cifar_dataset" Collapsed="true">
+    <Position X="34.75" Y="10.25" Width="1.5" />
     <TypeIdentifier>
       <HashCode>AAAAAACAABAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAA=</HashCode>
       <FileName>cifar_data_loader.h</FileName>
     </TypeIdentifier>
   </Enum>
-  <Enum Name="log_output_type" Collapsed="true">
-    <Position X="24.25" Y="6.25" Width="1.5" />
+  <Enum Name="nnet::log_output_type" Collapsed="true">
+    <Position X="12.75" Y="9" Width="1.5" />
     <TypeIdentifier>
-      <HashCode>AAAAAAAAAAAAAAAAAAAAAAAAAAAIAABAAAAAAAAAAAA=</HashCode>
+      <HashCode>AEAAAAAAAAAAAAAAAAAAIAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
       <FileName>analytics.h</FileName>
     </TypeIdentifier>
   </Enum>
-  <Enum Name="log_property" Collapsed="true">
-    <Position X="26" Y="6.25" Width="1.5" />
+  <Enum Name="nnet::log_property" Collapsed="true">
+    <Position X="14.5" Y="9" Width="1.5" />
     <TypeIdentifier>
-      <HashCode>IAAAAAAAAAAAAEAAAAAAAAAAAAAQAAAAAAAAAAAAAAA=</HashCode>
+      <HashCode>AAAAAAAAAAAAAAAAAAAAAAEAAAABAACAAAAAAAAAAAA=</HashCode>
       <FileName>analytics.h</FileName>
     </TypeIdentifier>
   </Enum>
-  <Enum Name="verbosity" Collapsed="true">
-    <Position X="27.75" Y="6.25" Width="1.5" />
+  <Enum Name="nnet::verbosity" Collapsed="true">
+    <Position X="16.25" Y="9" Width="1.5" />
     <TypeIdentifier>
-      <HashCode>AAAAgAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA=</HashCode>
+      <HashCode>AAIAAAAAAAAIAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
       <FileName>analytics.h</FileName>
     </TypeIdentifier>
   </Enum>
-  <Enum Name="nn::instruction_function_type" Collapsed="true">
-    <Position X="19.25" Y="9" Width="1.5" />
-    <TypeIdentifier>
-      <HashCode>AAAAAAIAAAAAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAA=</HashCode>
-      <FileName>instruction_functions.h</FileName>
-    </TypeIdentifier>
-  </Enum>
-  <Enum Name="nn::function_id" Collapsed="true">
-    <Position X="17.5" Y="9" Width="1.5" />
+  <Enum Name="nnet::nnet_internal::function_id" Collapsed="true">
+    <Position X="16" Y="10.25" Width="1.5" />
     <TypeIdentifier>
       <HashCode>QAAAIEgIAAAAAMAAAAQAAAAAAAAAAAiAAAAAAARAAAA=</HashCode>
       <FileName>instruction_functions.h</FileName>
     </TypeIdentifier>
   </Enum>
-  <Enum Name="nn::out_function_id" Collapsed="true">
-    <Position X="26.25" Y="9" Width="1.5" />
+  <Enum Name="nnet::nnet_internal::out_function_id" Collapsed="true">
+    <Position X="24.75" Y="10.25" Width="1.5" />
     <TypeIdentifier>
       <HashCode>AAAAAAAAAAAAAIAAAAAAAAAAAAAAAAAAAAAAAAgAAAA=</HashCode>
       <FileName>output_functions.h</FileName>
     </TypeIdentifier>
   </Enum>
-  <Enum Name="nn::padding_type" Collapsed="true">
-    <Position X="14.25" Y="11.75" Width="1.5" />
+  <Enum Name="nnet::padding_type" Collapsed="true">
+    <Position X="12.75" Y="13" Width="1.5" />
     <TypeIdentifier>
-      <HashCode>AAAAAgAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <HashCode>AAAAAAAAAAAAAIAAAAAAAAAAAAAAAAAAAAAAAAAABAA=</HashCode>
       <FileName>instruction_functions.h</FileName>
+    </TypeIdentifier>
+  </Enum>
+  <Enum Name="nnet::nnet_internal::network_phase" Collapsed="true">
+    <Position X="21.75" Y="7.25" Width="1.5" />
+    <TypeIdentifier>
+      <HashCode>AAAAgAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</HashCode>
+      <FileName>operation.h</FileName>
     </TypeIdentifier>
   </Enum>
   <Font Name="Segoe UI" Size="9" />

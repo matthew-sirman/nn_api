@@ -33,10 +33,6 @@ namespace nnet {
 			//Return the average loss for the last batch
 			virtual float get_average_loss();
 
-			void feed_target_data(float* targets) {
-				this->targets = targets;
-			}
-
 			//Reset the average loss value to 0
 			void clear_loss() { avg_loss = 0; }
 
@@ -45,6 +41,16 @@ namespace nnet {
 
 			//Returns the input size of the cost function
 			size_t get_size();
+
+			//Get Input Placeholder
+			//Return a reference to the input placeholder. This can be used to
+			//feed data into this operation
+			placeholder& get_input_placeholder() { return input_data_ph; }
+
+			//Get Taget Placeholder
+			//Return a reference to the target placeholder. This can be used to
+			//feed data into this operation
+			placeholder& get_target_placeholder() { return target_data_ph; }
 
 		protected:
 			//shape of the input
@@ -68,8 +74,11 @@ namespace nnet {
 			//float to store the average loss on the host
 			float avg_loss = 0;
 
-			//vector of targets fed into this function
-			float* targets = nullptr;
+			//placeholder for the input data
+			placeholder input_data_ph = placeholder("inputs");
+
+			//placeholder for the target data
+			placeholder target_data_ph = placeholder("targets");
 		};
 
 		//Squared Error Cost Function

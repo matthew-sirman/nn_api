@@ -1,7 +1,9 @@
 #pragma once
 
+#include <functional>
 #include "instruction_functions.h"
 
+using namespace std;
 using namespace nnet::nnet_internal;
 
 namespace nnet {
@@ -46,6 +48,11 @@ namespace nnet {
 			//Returns the computed output vector after evaluating
 			float* get_out_vector();
 
+			//Get Input Placeholder
+			//Return a reference to the input placeholder. This can be used to
+			//feed data into this operation
+			placeholder& get_input_placeholder() { return input_data_ph; }
+
 		protected:
 			//Initialise
 			//Internal initaliser specifying input and output shapes separately
@@ -59,6 +66,10 @@ namespace nnet {
 			//Flag to indicate if the function has been initialised
 			//Defaults to false
 			bool initialised = false;
+
+			//Input Data Placeholder
+			//Placeholder for the input data for this output function
+			placeholder input_data_ph = placeholder("inputs");
 		};
 
 		//Softmax Function

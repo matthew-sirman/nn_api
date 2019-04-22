@@ -53,7 +53,7 @@ void nnet::nnet_internal::__run_graph_callback(node<instruction_function*> node)
 
 	//feed the result into each child of this node
 	for (auto child : node.children) {
-		child->value->feed_input_data(node.value->get_out_vector());
+		child->value->feed(child->value->get_input_placeholder(), node.value->get_out_vector());
 	}
 }
 
@@ -64,6 +64,6 @@ void nnet::nnet_internal::__backprop_graph_callback(node<instruction_function*> 
 
 	//feed the result into each parents of this node
 	for (auto parent : node.parents) {
-		parent->value->feed_derivatives(node.value->get_derivative_vector());
+		parent->value->feed(parent->value->get_derivative_placeholder(), node.value->get_derivative_vector());
 	}
 }
