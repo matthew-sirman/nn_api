@@ -14,7 +14,7 @@ namespace nnet {
 	//Heirarchy Image Loader
 	//Loads images from folders
 	//Each folder is a class where each image in that folder is a member of that class
-	class heirarchy_image_loader : public batch_iterator
+	class hierarchy_image_loader : public batch_iterator
 	{
 	public:
 		//Constructor
@@ -22,10 +22,10 @@ namespace nnet {
 		//Specifies the target shape which the images should be cast to (as different datasets may have
 		//different image sizes, and not all images may be the same size)
 		//Specifies whether the data should be loaded as one-hot
-		heirarchy_image_loader(string file_path, shape target_shape, bool one_hot = true);
+		hierarchy_image_loader(string file_path, shape target_shape, bool one_hot = true);
 
 		//Destructor
-		~heirarchy_image_loader();
+		~hierarchy_image_loader();
 
 		//Load Data Set
 		//Load the dataset and work out the classes and what images are in each of them

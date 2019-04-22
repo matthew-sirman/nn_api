@@ -78,9 +78,6 @@
     <ClInclude Include="cifar_data_loader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="heirarchy_image_loader.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="variable_initialiser.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -106,6 +103,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="placeholder.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="hierarchy_image_loader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -134,9 +134,6 @@
     <ClCompile Include="timer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="util.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="dllmain.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -146,13 +143,13 @@
     <ClCompile Include="neural_network_api.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="heirarchy_image_loader.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="output_functions.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="nn_ops.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="hierarchy_image_loader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -160,13 +157,13 @@
     <CudaCompile Include="conv_ops_2d.cu">
       <Filter>Source Files</Filter>
     </CudaCompile>
-    <CudaCompile Include="g_func_defs.cu">
-      <Filter>Source Files</Filter>
-    </CudaCompile>
     <CudaCompile Include="instructions_kernel.cu">
       <Filter>Source Files</Filter>
     </CudaCompile>
     <CudaCompile Include="optimiser_kernel.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
+    <CudaCompile Include="matrix_multiply.cu">
       <Filter>Source Files</Filter>
     </CudaCompile>
   </ItemGroup>

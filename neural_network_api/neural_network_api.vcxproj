@@ -185,7 +185,7 @@
     <ClInclude Include="d_matrix.h" />
     <ClInclude Include="error_handling.h" />
     <ClInclude Include="graph.h" />
-    <ClInclude Include="heirarchy_image_loader.h" />
+    <ClInclude Include="hierarchy_image_loader.h" />
     <ClInclude Include="instructions_kernel.h" />
     <ClInclude Include="instruction_functions.h" />
     <ClInclude Include="kernel.h" />
@@ -213,7 +213,7 @@
     <ClCompile Include="analytics.cpp" />
     <ClCompile Include="cost_functions.cpp" />
     <ClCompile Include="dllmain.cpp" />
-    <ClCompile Include="heirarchy_image_loader.cpp" />
+    <ClCompile Include="hierarchy_image_loader.cpp" />
     <ClCompile Include="instruction_functions.cpp" />
     <ClCompile Include="mnist_data_loader.cpp" />
     <ClCompile Include="network_model.cpp" />
@@ -227,11 +227,10 @@
     </ClCompile>
     <ClCompile Include="tensor.cpp" />
     <ClCompile Include="timer.cpp" />
-    <ClCompile Include="util.cpp" />
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="conv_ops_2d.cu" />
-    <CudaCompile Include="g_func_defs.cu" />
+    <CudaCompile Include="matrix_multiply.cu" />
     <CudaCompile Include="instructions_kernel.cu" />
     <CudaCompile Include="optimiser_kernel.cu" />
   </ItemGroup>

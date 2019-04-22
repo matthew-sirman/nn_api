@@ -1,6 +1,5 @@
 #pragma once
 
-#include "float_ops.h"
 #include "d_matrix.h"
 #include "error_handling.h"
 
@@ -23,14 +22,14 @@ constexpr auto THREAD_TILE_K = 2;
 constexpr auto THREAD_SIZE_N = BLOCK_TILE_N / THREAD_TILE_N;
 constexpr auto THREAD_SIZE_M = BLOCK_TILE_M / THREAD_TILE_M;
 
-//API FUNCTION
-//Thread Level Multiply
-//Multiplies two matrix fragments in a single thread
-template <typename m_T, int tile_n, int tile_m, int tile_k>
-__device__ void d_thread_level_multiply(m_T r_accum[tile_n * tile_m], m_T r_A[tile_m * tile_k], m_T r_B[tile_n * tile_k]);
-
 namespace nnet {
 	namespace nnet_internal {
+		//API FUNCTION
+		//Thread Level Multiply
+		//Multiplies two matrix fragments in a single thread
+		template <typename m_T, int tile_n, int tile_m, int tile_k>
+		__device__ void d_thread_level_multiply(m_T r_accum[tile_n * tile_m], m_T r_A[tile_m * tile_k], m_T r_B[tile_n * tile_k]);
+
 		//API FUNCTION
 		//Matrix Multiply
 		//Multiplies two matrices A and B together and writes into matrix C

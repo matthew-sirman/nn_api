@@ -1,9 +1,9 @@
 #include "stdafx.h"
-#include "heirarchy_image_loader.h"
+#include "hierarchy_image_loader.h"
 
 
 namespace nnet {
-	heirarchy_image_loader::heirarchy_image_loader(string file_path, shape target_size, bool one_hot)
+	hierarchy_image_loader::hierarchy_image_loader(string file_path, shape target_size, bool one_hot)
 	{
 		//set the parameters
 		this->file_path = file_path;
@@ -11,11 +11,11 @@ namespace nnet {
 		this->one_hot = one_hot;
 	}
 
-	heirarchy_image_loader::~heirarchy_image_loader()
+	hierarchy_image_loader::~hierarchy_image_loader()
 	{
 	}
 
-	void heirarchy_image_loader::load_data_set()
+	void hierarchy_image_loader::load_data_set()
 	{
 		//initialise the number of classes to 0
 		n_classes = 0;
@@ -49,7 +49,7 @@ namespace nnet {
 		random_shuffle(dataset_files.begin(), dataset_files.end());
 	}
 
-	void heirarchy_image_loader::next_batch()
+	void hierarchy_image_loader::next_batch()
 	{
 		//set the data buffer to 0
 		memset(data_buffer, 0, sizeof(float) * batch_size * target_shape.size());
@@ -117,24 +117,24 @@ namespace nnet {
 		}
 	}
 
-	tensor* heirarchy_image_loader::get_next_batch()
+	tensor* hierarchy_image_loader::get_next_batch()
 	{
 		return data;
 	}
 
-	tensor* heirarchy_image_loader::get_next_batch_labels()
+	tensor* hierarchy_image_loader::get_next_batch_labels()
 	{
 		return labels;
 	}
 
-	void heirarchy_image_loader::reset_iterator()
+	void hierarchy_image_loader::reset_iterator()
 	{
 		load_index = 0;
 		//reshuffle the dataset to improve performance
 		random_shuffle(dataset_files.begin(), dataset_files.end());
 	}
 
-	void heirarchy_image_loader::initialise(size_t batch_size)
+	void hierarchy_image_loader::initialise(size_t batch_size)
 	{
 		//if already initialised abort and return
 		if (initialised)
@@ -171,7 +171,7 @@ namespace nnet {
 		initialised = true;
 	}
 
-	void heirarchy_image_loader::close()
+	void hierarchy_image_loader::close()
 	{
 		//if not initialised return
 		if (!initialised)
@@ -188,7 +188,7 @@ namespace nnet {
 		initialised = false;
 	}
 
-	void heirarchy_image_loader::reformat_image(Mat img, float* buffer, size_t offset)
+	void hierarchy_image_loader::reformat_image(Mat img, float* buffer, size_t offset)
 	{
 		//get the start rows and cols from the raw image
 		int r_w = img.cols;
